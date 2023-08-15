@@ -1,0 +1,114 @@
+TensorFlow 2.0 Upgrade Script
+-----------------------------
+Converted 9 files
+Detected 5 issues that require attention
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+File: 2DJ1J2\2DJ1J2_L10.py
+--------------------------------------------------------------------------------
+2DJ1J2\2DJ1J2_L10.py:352:20: WARNING: *.save requires manual check. (This warning is only applicable if the code saves a tf.Keras model) Keras model.save now saves to the Tensorflow SavedModel format by default, instead of HDF5. To continue saving to HDF5, add the argument save_format='h5' to the save() function.
+2DJ1J2\2DJ1J2_L10.py:365:20: WARNING: *.save requires manual check. (This warning is only applicable if the code saves a tf.Keras model) Keras model.save now saves to the Tensorflow SavedModel format by default, instead of HDF5. To continue saving to HDF5, add the argument save_format='h5' to the save() function.
+2DJ1J2\2DJ1J2_L10.py:368:20: WARNING: *.save requires manual check. (This warning is only applicable if the code saves a tf.Keras model) Keras model.save now saves to the Tensorflow SavedModel format by default, instead of HDF5. To continue saving to HDF5, add the argument save_format='h5' to the save() function.
+--------------------------------------------------------------------------------
+File: 2DJ1J2\2DJ1J2_L4.py
+--------------------------------------------------------------------------------
+2DJ1J2\2DJ1J2_L4.py:352:20: WARNING: *.save requires manual check. (This warning is only applicable if the code saves a tf.Keras model) Keras model.save now saves to the Tensorflow SavedModel format by default, instead of HDF5. To continue saving to HDF5, add the argument save_format='h5' to the save() function.
+2DJ1J2\2DJ1J2_L4.py:374:20: WARNING: *.save requires manual check. (This warning is only applicable if the code saves a tf.Keras model) Keras model.save now saves to the Tensorflow SavedModel format by default, instead of HDF5. To continue saving to HDF5, add the argument save_format='h5' to the save() function.
+================================================================================
+Detailed log follows:
+
+================================================================================
+================================================================================
+Input tree: '2DJ1J2'
+================================================================================
+--------------------------------------------------------------------------------
+Processing file '2DJ1J2\\2DJ1J2_L10.py'
+ outputting to '2DJ1J2_v2\\2DJ1J2_L10.py'
+--------------------------------------------------------------------------------
+
+204:284: INFO: Renamed 'tf.real' to 'tf.math.real'
+204:326: INFO: Renamed 'tf.real' to 'tf.math.real'
+204:370: INFO: Renamed 'tf.real' to 'tf.math.real'
+204:428: INFO: Renamed 'tf.real' to 'tf.math.real'
+212:22: INFO: Renamed 'tf.train.GradientDescentOptimizer' to 'tf.compat.v1.train.GradientDescentOptimizer'
+216:33: INFO: Renamed 'tf.random_uniform' to 'tf.random.uniform'
+352:20: WARNING: *.save requires manual check. (This warning is only applicable if the code saves a tf.Keras model) Keras model.save now saves to the Tensorflow SavedModel format by default, instead of HDF5. To continue saving to HDF5, add the argument save_format='h5' to the save() function.
+365:20: WARNING: *.save requires manual check. (This warning is only applicable if the code saves a tf.Keras model) Keras model.save now saves to the Tensorflow SavedModel format by default, instead of HDF5. To continue saving to HDF5, add the argument save_format='h5' to the save() function.
+368:20: WARNING: *.save requires manual check. (This warning is only applicable if the code saves a tf.Keras model) Keras model.save now saves to the Tensorflow SavedModel format by default, instead of HDF5. To continue saving to HDF5, add the argument save_format='h5' to the save() function.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+Processing file '2DJ1J2\\2DJ1J2_L4.py'
+ outputting to '2DJ1J2_v2\\2DJ1J2_L4.py'
+--------------------------------------------------------------------------------
+
+204:284: INFO: Renamed 'tf.real' to 'tf.math.real'
+204:326: INFO: Renamed 'tf.real' to 'tf.math.real'
+204:370: INFO: Renamed 'tf.real' to 'tf.math.real'
+204:428: INFO: Renamed 'tf.real' to 'tf.math.real'
+212:22: INFO: Renamed 'tf.train.GradientDescentOptimizer' to 'tf.compat.v1.train.GradientDescentOptimizer'
+216:33: INFO: Renamed 'tf.random_uniform' to 'tf.random.uniform'
+352:20: WARNING: *.save requires manual check. (This warning is only applicable if the code saves a tf.Keras model) Keras model.save now saves to the Tensorflow SavedModel format by default, instead of HDF5. To continue saving to HDF5, add the argument save_format='h5' to the save() function.
+374:20: WARNING: *.save requires manual check. (This warning is only applicable if the code saves a tf.Keras model) Keras model.save now saves to the Tensorflow SavedModel format by default, instead of HDF5. To continue saving to HDF5, add the argument save_format='h5' to the save() function.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+Processing file '2DJ1J2\\Helper_Functions.py'
+ outputting to '2DJ1J2_v2\\Helper_Functions.py'
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+Processing file '2DJ1J2\\Load_model.py'
+ outputting to '2DJ1J2_v2\\Load_model.py'
+--------------------------------------------------------------------------------
+
+55:284: INFO: Renamed 'tf.real' to 'tf.math.real'
+55:326: INFO: Renamed 'tf.real' to 'tf.math.real'
+55:370: INFO: Renamed 'tf.real' to 'tf.math.real'
+55:428: INFO: Renamed 'tf.real' to 'tf.math.real'
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+Processing file '2DJ1J2\\MDComplexRNN.py'
+ outputting to '2DJ1J2_v2\\MDComplexRNN.py'
+--------------------------------------------------------------------------------
+
+512:64: INFO: Renamed 'tf.real' to 'tf.math.real'
+512:109: INFO: Renamed 'tf.imag' to 'tf.math.imag'
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+Processing file '2DJ1J2\\MDTensorizedcell.py'
+ outputting to '2DJ1J2_v2\\MDTensorizedcell.py'
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+Processing file '2DJ1J2\\MDTensorizedGRUcell.py'
+ outputting to '2DJ1J2_v2\\MDTensorizedGRUcell.py'
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+Processing file '2DJ1J2\\Tensordot2.py'
+ outputting to '2DJ1J2_v2\\Tensordot2.py'
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+Processing file '2DJ1J2\\.ipynb_checkpoints\\Load_model-checkpoint.py'
+ outputting to '2DJ1J2_v2\\.ipynb_checkpoints\\Load_model-checkpoint.py'
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+
