@@ -109,6 +109,8 @@ def run_1DTFIM(numsteps = 10**4, systemsize = 20, num_units = 50, Bx = 1, num_la
         probs=tf.reduce_sum( tf.log(wf.log_probability(samples_placeholder, input_dim)), axis=1) #The probs are obtained by feeding the sample of spins.
         optimizer=tf.train.AdamOptimizer(learning_rate=learning_rate_withexpdecay) #Using AdamOptimizer
         init=tf.global_variables_initializer()
+
+        
     # End Intitializing ----------------------------
 
     #Starting Session------------
@@ -118,6 +120,7 @@ def run_1DTFIM(numsteps = 10**4, systemsize = 20, num_units = 50, Bx = 1, num_la
 
     sess=tf.Session(graph=wf.graph, config=config)
     sess.run(init)
+
     #---------------------------
 
     #Counting the number of parameters
@@ -132,7 +135,14 @@ def run_1DTFIM(numsteps = 10**4, systemsize = 20, num_units = 50, Bx = 1, num_la
             sum +=v1.shape[0]
         print('The number of variational parameters of the pRNN wavefunction is {0}'.format(sum))
         print('\n')
+        
+    path=os.getcwd()
 
+    ending='_units'
+    for u in units:
+        ending+='_{0}'.format(u)
+
+    filename='Check_Points/RNNwavefunction_N'+str(N)+'_samp'+str(numsamples)+'_Jz1Bx'+str(Bx)+'_GRURNN_OBC'+ending + '.ckpt'
     #Building the graph -------------------
     Jz = +np.ones(N) #Ferromagnetic coupling
 
@@ -209,11 +219,15 @@ def run_1DTFIM(numsteps = 10**4, systemsize = 20, num_units = 50, Bx = 1, num_la
                   print('mean(E): {0}, var(E): {1}, #samples {2}, #Step {3} \n\n'.format(meanE,varE,numsamples, it))
 
               sess.run(optstep,feed_dict={Eloc:local_energies,samp:samples,learningrate_placeholder: lr})
-            
+          saver.save(sess,path+'/'+filename)
+          '''
+          save_samples = wf.sample(numsamples = 1000000, inputdim = 2)
+          save_samples_= sess.run(save_samples)
+          np.save("save_samples_"+str(Bx)+".npy", save_samples_)
           basis = np.array(list(itertools.product([0, 1], repeat=N)))
-        
           probs_all_basis = sess.run(log_probs_tensor, feed_dict={samples_placeholder: basis})
-          np.save('probs_all_basis.npy',probs_all_basis)
+          np.save('probs_all_basis'+str(Bx)+'.npy',probs_all_basis)
           print(probs_all_basis.shape)
+          '''
     return meanEnergy, varEnergy
     #----------------------------
