@@ -16,9 +16,9 @@ def str2bool(v):
 
 
 ###################################################################################
-def Triangular2DHeis_MatrixElements(J,J2,Nx,Ny,sigmap,sigmas, matrixelements):
+def Triangular2DHeis_MatrixElements(Bx,J2,Nx,Ny,sigmap,sigmas, matrixelements):
     """
-    J is the actual J2
+    Bx is the actual magnetic field
     J2 is the diagonal couplings between spins
     J2 = 1.0 corresponds to the isotropic triangular lattice
     J2 = 0.0 corresponds to the Heisenberg square lattice
@@ -31,27 +31,16 @@ def Triangular2DHeis_MatrixElements(J,J2,Nx,Ny,sigmap,sigmas, matrixelements):
         for ny in range(Ny):
             if nx != (Nx-1):  #if not on the right
                 if sigmap[nx,ny] != sigmap[(nx+1),ny]:
-                    diag-=0.25 #add a negative energy contribution
+                    diag+=1. #add a negative energy contribution
                 else:
-                    diag+=0.25
-                    
-            if nx != (Nx-2) and nx!= (Nx-1):  #if not on the right
-                if sigmap[nx,ny] != sigmap[(nx+2),ny]:
-                    diag-=0.25*J #add a negative energy contribution
-                else:
-                    diag+=0.25*J
-
+                    diag-=1.
+                   
             if ny != (Ny-1): #if not on the down
                 if sigmap[nx,ny] != sigmap[nx,(ny+1)]:
-                    diag-=0.25 #add a negative energy contribution
+                    diag+=1. #add a negative energy contribution
                 else:
-                    diag+=0.25
+                    diag-=1.
                     
-            if ny != (Ny-2) and ny!= (Ny-1): #if not on the down
-                if sigmap[nx,ny] != sigmap[nx,(ny+2)]:
-                    diag-=0.25*J #add a negative energy contribution
-                else:
-                    diag+=0.25*J
     '''
             if ny != (Ny-1) and nx != (Nx-1): #nnn
                 if sigmap[nx,ny] != sigmap[(nx+1),(ny+1)]:
@@ -69,17 +58,12 @@ def Triangular2DHeis_MatrixElements(J,J2,Nx,Ny,sigmap,sigmas, matrixelements):
     #off-diagonal part (For the Heis Model)
     for ny in range(Ny):
         for nx in range(Nx):
-            if nx != (Nx-1):  #if not on the right
-                if sigmap[nx,ny] != sigmap[(nx+1),ny]:
-                    sig = np.copy(sigmap)
-                    sig_temp = sig[nx,ny]
-                    sig[nx,ny] = sig[(nx+1),ny]
-                    sig[(nx+1),ny] = sig_temp
-
-                    sigmas[num] = sig
-                    matrixelements[num] = -1/2 #negatice sign means Marshal sign is implemented
-                    num += 1
-                    
+            sig = np.copy(sigmap)
+            sig[nx,ny] = 1-sig[nx,ny]
+            sigmas[num] = sig
+            matrixelements[num] = -Bx 
+            num += 1
+    '''
             if nx != (Nx-2) and nx!=(Nx-1):  #if not on the right
                 if sigmap[nx,ny] != sigmap[(nx+2),ny]:
                     sig = np.copy(sigmap)
@@ -112,7 +96,7 @@ def Triangular2DHeis_MatrixElements(J,J2,Nx,Ny,sigmap,sigmas, matrixelements):
                     sigmas[num] = sig
                     matrixelements[num] = -1/2*J
                     num += 1
-    '''             
+             
             if ny != (Ny-1) and nx != (Nx-1): #nnn
 
                 if sigmap[nx,ny] != sigmap[(nx+1),(ny+1)]:
@@ -127,7 +111,7 @@ def Triangular2DHeis_MatrixElements(J,J2,Nx,Ny,sigmap,sigmas, matrixelements):
     '''
     return num
 
-def Triangular2DHeis_LocalEnergies(J,J2,Nx,Ny,sigmasp,sigmas,H,sigmaH,matrixelements):
+def Triangular2DHeis_LocalEnergies(Bx,J2,Nx,Ny,sigmasp,sigmas,H,sigmaH,matrixelements):
     """
     """
     slices=[]
@@ -137,13 +121,13 @@ def Triangular2DHeis_LocalEnergies(J,J2,Nx,Ny,sigmasp,sigmas,H,sigmaH,matrixelem
 
     for n in range(numsamples):
         sigmap=sigmasp[n,:]
-        num = Triangular2DHeis_MatrixElements(J,J2,Nx,Ny,sigmap, sigmaH, matrixelements)
+        num = Triangular2DHeis_MatrixElements(Bx,J2,Nx,Ny,sigmap, sigmaH, matrixelements)
         slices.append(slice(sigmas_length,sigmas_length + num))
         s = slices[n]
 
         if (len(H[s])!=num):
             print("error")
-            print(H[s].shape,s, matrixelements[:num].shape)
+            print(H[s].shape, s, matrixelements[:num].shape)
 
         H[s] = matrixelements[:num]
         sigmas[s] = sigmaH[:num]
@@ -155,13 +139,13 @@ def Triangular2DHeis_LocalEnergies(J,J2,Nx,Ny,sigmasp,sigmas,H,sigmaH,matrixelem
 ########################################################################################
 
 
-def Get_Samples_and_Elocs(J,J2,Nx, Ny, samples, sigmas, H, log_amplitudes, sigmaH, matrixelements, samples_tensor, inputs, log_amps, sess, RNN_symmetry):
+def Get_Samples_and_Elocs(Bx,J2,Nx, Ny, samples, sigmas, H, log_amplitudes, sigmaH, matrixelements, samples_tensor, inputs, log_amps, sess, RNN_symmetry):
 
     local_energies = np.zeros(samples.shape[0], dtype = np.complex64) #The type complex should be specified, otherwise the imaginary part will be discarded
 
     samples=sess.run(samples_tensor)
 
-    slices, len_sigmas = Triangular2DHeis_LocalEnergies(J,J2,Nx,Ny,samples, sigmas, H, sigmaH, matrixelements)
+    slices, len_sigmas = Triangular2DHeis_LocalEnergies(Bx,J2,Nx,Ny,samples, sigmas, H, sigmaH, matrixelements)
 
     if RNN_symmetry == "c2dsym":
         numsampsteps = 4
@@ -184,11 +168,11 @@ def Get_Samples_and_Elocs(J,J2,Nx, Ny, samples, sigmas, H, log_amplitudes, sigma
 
     return samples, local_energies
 
-def Get_Elocs(J,J2, Nx, Ny, samples, sigmas, H, log_amplitudes, sigmaH, matrixelements, inputs, log_amps, sess, RNN_symmetry):
+def Get_Elocs(Bx,J2, Nx, Ny, samples, sigmas, H, log_amplitudes, sigmaH, matrixelements, inputs, log_amps, sess, RNN_symmetry):
 
     local_energies = np.zeros(samples.shape[0], dtype = np.complex64) #The type complex should be specified, otherwise the imaginary part will be discarded
 
-    slices, len_sigmas = Triangular2DHeis_LocalEnergies(J,J2,Nx,Ny,samples,sigmas, H, sigmaH, matrixelements)
+    slices, len_sigmas = Triangular2DHeis_LocalEnergies(Bx,J2,Nx,Ny,samples,sigmas, H, sigmaH, matrixelements)
 
     if RNN_symmetry == "c2dsym":
         numsampsteps = 4

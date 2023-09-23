@@ -17,7 +17,7 @@ def get_numavailable_gpus():
     print(local_device_protos)
     return len([x.name for x in local_device_protos if x.device_type == 'GPU'])
 parser = argparse.ArgumentParser()
-parser.add_argument('--J', type = float, default=0.2)
+parser.add_argument('--Bx', type = float, default=0.2)
 parser.add_argument('--numgpus', type = int, default=2)
 parser.add_argument('--numsamples', type = int, default=256)
 parser.add_argument('--rnn_unit', type = int, default=128)
@@ -32,12 +32,11 @@ args = parser.parse_args()
 mag_fixed = True
 magnetization = 0
 units = [args.rnn_unit]
-Nx = 10
-Ny = 10
-testing_sample = 10
+Nx = 12
+Ny = 12
 
 numsamples = args.numsamples
-J = args.J
+Bx = args.Bx
 numgpus=args.numgpus
 RNN_symmetry = "nosym"
 spinparity_fixed = False
@@ -47,7 +46,7 @@ for u in units:
     ending+='_{0}'.format(u)
 
 
-savename = '_numsamples_'+str(numsamples)+'_magfixed'+str(mag_fixed)+'_mag'+str(magnetization)+'_J2'+str(J)+"_symmetry_"+RNN_symmetry+"_num_gpus"+str(numgpus)
+savename = '_numsamples_'+str(numsamples)+'_magfixed'+str(mag_fixed)+'_mag'+str(magnetization)+'_Bx'+str(Bx)+"_symmetry_"+RNN_symmetry+"_num_gpus"+str(numgpus)
 backgroundpath = './Check_Points/Size_'+str(Nx)+'x'+ str(Ny)
 filename_checkpoint = './Check_Points/Size_'+str(Nx)+'x'+ str(Ny)+'/RNNwavefunction_2DTCRNN_'+str(Nx)+'x'+ str(Ny)+ending+savename+'.ckpt'
 print(filename_checkpoint)
@@ -288,8 +287,8 @@ def ith_step(wavefun, position, step, L, num_first_sample, num_second_sample, nu
                             aci_first_prob_var = np.var(aci_first_prob, axis = 1)
                             print("second_var:", np.mean(aci_first_prob_var))
                             print("first_var:", np.var(np.abs(1-aci_first_prob_mean/sample_first_prob)))
-                            output+= np.sum(np.abs(1 - aci_first_prob_mean/sample_first_prob))/num_first_sample
-                            first_var += np.var(np.abs(1-aci_first_prob_mean/sample_first_prob))
+                            output+= np.sum(2*np.abs(sample_first_prob - aci_first_prob_mean))/num_first_sample
+                            first_var += np.var(2*np.abs(sample_first_prob-aci_first_prob_mean))
                             second_var += np.mean(aci_first_prob_var)
 
                         first_var/= num_first_sample//num_units
@@ -320,9 +319,9 @@ def ith_step(wavefun, position, step, L, num_first_sample, num_second_sample, nu
 
 final_diff, final_first_var, final_second_var= ith_step(wf, [[args.position_y, args.position_x]], 12, Nx, args.num_first_sample, args.num_second_sample, args.num_unit, "else", RNN_symmetry)
 
-np.save(str(J)+"/tv_"+str(J)+"y"+str(args.position_y)+"x"+str(args.position_x)+"_param"+str(args.param), np.array(final_diff))
-np.save(str(J)+"/tv_second_var"+str(J)+"y"+str(args.position_y)+"x"+str(args.position_x)+"_param"+str(args.param), np.array(final_second_var))
-np.save(str(J)+"/tv_first_var"+str(J)+"y"+str(args.position_y)+"x"+str(args.position_x)+"_param"+str(args.param), np.array(final_first_var))
+np.save(str(Bx)+"/tv_"+str(Bx)+"y"+str(args.position_y)+"x"+str(args.position_x)+"_param"+str(args.param), np.array(final_diff))
+np.save(str(Bx)+"/tv_second_var"+str(Bx)+"y"+str(args.position_y)+"x"+str(args.position_x)+"_param"+str(args.param), np.array(final_second_var))
+np.save(str(Bx)+"/tv_first_var"+str(Bx)+"y"+str(args.position_y)+"x"+str(args.position_x)+"_param"+str(args.param), np.array(final_first_var))
 
 '''
     if (RNN_symmetry == "c4vsym"):     

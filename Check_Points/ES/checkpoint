@@ -1,0 +1,2 @@
+model_checkpoint_path: "C:\\Users\\Administrator\\PycharmProjects\\RNNWavefunctions\\entanglement_swapping//../Check_Points/ES/X_RNNwavefunction_N64_samp128_lradap0.0005_complexGRURNN_ES_units_64_zeromag.ckpt"
+all_model_checkpoint_paths: "C:\\Users\\Administrator\\PycharmProjects\\RNNWavefunctions\\entanglement_swapping//../Check_Points/ES/X_RNNwavefunction_N64_samp128_lradap0.0005_complexGRURNN_ES_units_64_zeromag.ckpt"

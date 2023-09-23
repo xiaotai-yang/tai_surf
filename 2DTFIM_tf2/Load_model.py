@@ -20,7 +20,7 @@ def get_numavailable_gpus():
 parser = argparse.ArgumentParser()
 parser.add_argument('--J', type = float, default=0.0)
 parser.add_argument('--num_unit', type = int, default=50)
-parser.add_argument('--numsamples', type = int, default=128)
+parser.add_argument('--numsamples', type = int, default=256)
 parser.add_argument('--num_first_sample', type = int, default=100)
 parser.add_argument('--num_second_sample', type = int, default=200)
 parser.add_argument('--position_y', type = int, default=4)
@@ -32,11 +32,11 @@ args = parser.parse_args()
 J = args.J
 position_ = [args.position_y, args.position_x]
 
-mag_fixed = True
+mag_fixed = False
 magnetization = 0
 units = [128]
-Nx = 10
-Ny = 10
+Nx = 12
+Ny = 12
 testing_sample = 10
 
 numsamples = args.numsamples
@@ -50,7 +50,7 @@ for u in units:
     ending+='_{0}'.format(u)
 
 
-savename = '_numsamples_'+str(numsamples)+'_magfixed'+str(mag_fixed)+'_mag'+str(magnetization)+'_J2'+str(J)+"_symmetry_"+RNN_symmetry+"_num_gpus"+str(numgpus)
+savename = '_numsamples_'+str(numsamples)+'_magfixed'+str(mag_fixed)+'_mag'+str(magnetization)+'_Bx'+str(Bx)+"_symmetry_"+RNN_symmetry+"_num_gpus"+str(numgpus)
 backgroundpath = './Check_Points/Size_'+str(Nx)+'x'+ str(Ny)
 filename_checkpoint = './Check_Points/Size_'+str(Nx)+'x'+ str(Ny)+'/RNNwavefunction_2DTCRNN_'+str(Nx)+'x'+ str(Ny)+ending+savename+'.ckpt'
 print(filename_checkpoint)
@@ -291,8 +291,8 @@ def ith_step(wavefun, position, step, L, num_first_sample, num_second_sample, nu
                         aci_first_prob_var = np.var(aci_first_prob, axis = 1)
                         print("second_var:", np.mean(aci_first_prob_var))
                         print("first_var:", np.var(np.abs(1-aci_first_prob_mean/sample_first_prob)))
-                        output+= np.sum(np.abs(1 - aci_first_prob_mean/sample_first_prob))/num_first_sample
-                        first_var += np.var(np.abs(1-aci_first_prob_mean/sample_first_prob))
+                        output+= np.sum(2*np.abs(sample_first_prob - aci_first_prob_mean))/num_first_sample
+                        first_var += np.var(2*np.abs(sample_first_prob-aci_first_prob_mean))
                         second_var += np.mean(aci_first_prob_var)
 
                     first_var/= num_first_sample//num_units

@@ -21,9 +21,9 @@ parser.add_argument('--J', type = float, default=0.2)
 parser.add_argument('--numgpus', type = int, default=2)
 parser.add_argument('--numsamples', type = int, default=256)
 parser.add_argument('--rnn_unit', type = int, default=128)
-parser.add_argument('--num_first_sample', type = int, default=250)
-parser.add_argument('--num_second_sample', type = int, default=2000)
-parser.add_argument('--num_unit', type = int, default=250)
+parser.add_argument('--num_first_sample', type = int, default=25)
+parser.add_argument('--num_second_sample', type = int, default=20)
+parser.add_argument('--num_unit', type = int, default=25)
 parser.add_argument('--position_y', type = int, default=9)
 parser.add_argument('--position_x', type = int, default=4)
 parser.add_argument('--param', type = int, default=1)
@@ -318,7 +318,7 @@ def ith_step(wavefun, position, step, L, num_first_sample, num_second_sample, nu
     '''
 
 
-final_diff, final_first_var, final_second_var= ith_step(wf, [[args.position_y, args.position_x]], 12, Nx, args.num_first_sample, args.num_second_sample, args.num_unit, "else", RNN_symmetry)
+final_diff, final_first_var, final_second_var= ith_step(wf, [[args.position_y, args.position_x]], 2, Nx, args.num_first_sample, args.num_second_sample, args.num_unit, "else", RNN_symmetry)
 
 np.save(str(J)+"/tv_"+str(J)+"y"+str(args.position_y)+"x"+str(args.position_x)+"_param"+str(args.param), np.array(final_diff))
 np.save(str(J)+"/tv_second_var"+str(J)+"y"+str(args.position_y)+"x"+str(args.position_x)+"_param"+str(args.param), np.array(final_second_var))

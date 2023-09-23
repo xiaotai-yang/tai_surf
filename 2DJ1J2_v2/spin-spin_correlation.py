@@ -146,7 +146,7 @@ with tf.compat.v1.variable_scope(wf.scope,reuse=tf.compat.v1.AUTO_REUSE):
 
 with tf.compat.v1.variable_scope(wf.scope,reuse=tf.compat.v1.AUTO_REUSE):
     with wf.graph.as_default():
-        config_sess = tf.stop_gradient(wf.sample(150000, inputdim=2))
+        config_sess = tf.stop_gradient(wf.sample(100000, inputdim=2))
         config = sess.run(config_sess)
 
 L = 10
