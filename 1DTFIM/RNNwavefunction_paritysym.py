@@ -5,16 +5,14 @@ import numpy as np
 import random
 
 class RNNwavefunction(object):
-    def __init__(self,systemsize,cell=None,units=[10],scope='RNNwavefunction', seed = 111): 
+    def __init__(self,systemsize,cell=None,activation=tf.nn.relu,units=[10],scope='RNNwavefunction', seed = 111): 
         """
-            systemsize:  int
-                         number of sites      
+            systemsize:  int, size of the lattice
             cell:        a tensorflow RNN cell
             units:       list of int
                          number of units per RNN layer
             scope:       str
                          the name of the name-space scope
-            seed:        pseudo-random number generator 
         """
     
         self.graph=tf.Graph()
@@ -49,7 +47,7 @@ class RNNwavefunction(object):
             samples:         tf.Tensor of shape (numsamples,systemsize)
                              the samples in integer encoding
         """
-        with self.graph.as_default(): #Call the default graph, used if not willing to create multiple graphs.
+        with self.graph.as_default(): #Call the default graph, used if willing to create multiple graphs.
             samples = []
             with tf.variable_scope(self.scope,reuse=tf.AUTO_REUSE):
                 b=np.zeros((numsamples,inputdim)).astype(np.float64)
@@ -121,7 +119,7 @@ class RNNwavefunction(object):
 
             log_probs1=tf.reduce_sum(tf.log(tf.reduce_sum(tf.multiply(probs,one_hot_samples),axis=2)),axis=1)
 
-            #Reverse all the spin configurations from left to right and vice-versa to impose the parity symmetry---------------------------
+            #Reverse all the spin configurations to impose the parity symmetry---------------------------
             samples_rev = samples[:,::-1]
 
             inputs=tf.stack([a,b], axis = 1)

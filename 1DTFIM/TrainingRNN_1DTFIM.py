@@ -4,10 +4,10 @@ import numpy as np
 import os
 import time
 import random
-from math import ceil
+import itertools
 
 from RNNwavefunction import RNNwavefunction
-# from RNNwavefunction_paritysym import RNNwavefunction #To use an RNN that has a parity symmetry so that the RNN is not biased by autoregressive sampling from left to right (but you need to comment the previous line)
+# from RNNwavefunction_paritysym import RNNwavefunction #To use an RNN that has a parity symmetry (but comment the previous line)
 
 # Loading Functions --------------------------
 def Ising_local_energies(Jz, Bx, samples, queue_samples, log_probs_tensor, samples_placeholder, log_probs, sess):
@@ -54,7 +54,7 @@ def Ising_local_energies(Jz, Bx, samples, queue_samples, log_probs_tensor, sampl
     # start = time.time()
 
     len_sigmas = (N+1)*numsamples
-    steps = ceil(len_sigmas/25000) #Get a maximum of 25000 configurations in batch size just to not allocate too much memory
+    steps = len_sigmas//25000+1 #I want a maximum of 25000 in batch size just to not allocate too much memory
 
     queue_samples_reshaped = np.reshape(queue_samples, [(N+1)*numsamples, N])
     for i in range(steps):
@@ -62,21 +62,21 @@ def Ising_local_energies(Jz, Bx, samples, queue_samples, log_probs_tensor, sampl
           cut = slice((i*len_sigmas)//steps,((i+1)*len_sigmas)//steps)
       else:
           cut = slice((i*len_sigmas)//steps,len_sigmas)
-      log_probs[cut] = sess.run(log_probs_tensor, feed_dict={samples_placeholder:queue_samples_reshaped[cut]})
-
+      #print(sess.run(log_probs_tensor, feed_dict={samples_placeholder: queue_samples_reshaped[cut]}))
+      
+      log_probs[cut] = np.sum(np.log(sess.run(log_probs_tensor, feed_dict={samples_placeholder: queue_samples_reshaped[cut]})), axis =1)         #run the log_probs_tensor to transform it from tensor to array 
     # end = time.time()
     # print("Estimating log probs ended ", end-start)
 
     log_probs_reshaped = np.reshape(log_probs, [N+1,numsamples])
-    
-#     for j in range(numsamples):
-#         local_energies[j] += -Bx*np.sum(np.exp(0.5*log_probs_reshaped[1:,j]-0.5*log_probs_reshaped[0,j]))
-    local_energies += -Bx*np.sum(np.exp(0.5*log_probs_reshaped[1:,:]-0.5*log_probs_reshaped[0,:]), axis = 0) #This is faster than previous loop, since it runs in parallel
+    for j in range(numsamples):
+        local_energies[j] += -Bx*np.sum(np.exp(0.5*log_probs_reshaped[1:,j]-0.5*log_probs_reshaped[0,j]))
+
     return local_energies
 #--------------------------
 
 # ---------------- Running VMC with RNNs -------------------------------------
-def run_1DTFIM(numsteps = 10**4, systemsize = 20, num_units = 50, Bx = 1, num_layers = 1, numsamples = 500, learningrate = 5e-3, seed = 111):
+def run_1DTFIM(numsteps = 10**4, systemsize = 20, num_units = 50, Bx = 1, num_layers = 1, numsamples = 500, learningrate = 5e-3, seed = 111, ):
 
     #Seeding ---------------------------------------------
     tf.reset_default_graph()
@@ -88,11 +88,6 @@ def run_1DTFIM(numsteps = 10**4, systemsize = 20, num_units = 50, Bx = 1, num_la
 
     # System size
     N = systemsize
-    
-    Jz = +np.ones(N) #Ferromagnetic coupling
-
-    #Learning rate
-    lr=np.float64(learningrate)
 
     # Intitializing the RNN-----------
     units=[num_units]*num_layers #list containing the number of hidden units for each layer of the networks
@@ -106,12 +101,16 @@ def run_1DTFIM(numsteps = 10**4, systemsize = 20, num_units = 50, Bx = 1, num_la
     #now initialize everything --------------------
     with wf.graph.as_default():
         samples_placeholder=tf.placeholder(dtype=tf.int32,shape=[numsamples_,N]) #the samples_placeholder are the samples of all of the spins
+
+        
         global_step = tf.Variable(0, trainable=False)
-        learningrate_placeholder=tf.placeholder(dtype=tf.float64,shape=[])
+        learningrate_placeholder = tf.placeholder(dtype=tf.float64,shape=[])
         learning_rate_withexpdecay = tf.train.exponential_decay(learningrate_placeholder, global_step = global_step, decay_steps = 100, decay_rate = 1.0, staircase=True) #For exponential decay of the learning rate (only works if decay_rate < 1.0)
-        probs=wf.log_probability(samples_placeholder,input_dim) #The probs are obtained by feeding the sample of spins.
+        probs=tf.reduce_sum( tf.log(wf.log_probability(samples_placeholder, input_dim)), axis=1) #The probs are obtained by feeding the sample of spins.
         optimizer=tf.train.AdamOptimizer(learning_rate=learning_rate_withexpdecay) #Using AdamOptimizer
         init=tf.global_variables_initializer()
+
+        
     # End Intitializing ----------------------------
 
     #Starting Session------------
@@ -121,6 +120,7 @@ def run_1DTFIM(numsteps = 10**4, systemsize = 20, num_units = 50, Bx = 1, num_la
 
     sess=tf.Session(graph=wf.graph, config=config)
     sess.run(init)
+
     #---------------------------
 
     #Counting the number of parameters
@@ -131,29 +131,40 @@ def run_1DTFIM(numsteps = 10**4, systemsize = 20, num_units = 50, Bx = 1, num_la
         values = sess.run(variables_names)
         for k,v in zip(variables_names, values):
             v1 = tf.reshape(v,[-1])
-            print(k,v1.shape)
+            # print(k,v1.shape)
             sum +=v1.shape[0]
-        print('The number of params is {0}'.format(sum))
-
-    #Building the graph -------------------
-
+        print('The number of variational parameters of the pRNN wavefunction is {0}'.format(sum))
+        print('\n')
+        
     path=os.getcwd()
 
     ending='_units'
     for u in units:
         ending+='_{0}'.format(u)
 
-    filename='/../Check_Points/1DTFIM/RNNwavefunction_N'+str(N)+'_samp'+str(numsamples)+'_Jz1Bx'+str(Bx)+'_GRURNN_OBC'+ending + '.ckpt'
-    savename = '_TFIM'
+    filename='Check_Points/RNNwavefunction_N'+str(N)+'_samp'+str(numsamples)+'_Jz1Bx'+str(Bx)+'_GRURNN_OBC'+ending + '.ckpt'
+    #Building the graph -------------------
+    Jz = +np.ones(N) #Ferromagnetic coupling
+
+    #Learning rate
+    lr=np.float64(learningrate)
+
+    ending='_units'
+    for u in units:
+        ending+='_{0}'.format(u)
+
 
     with tf.variable_scope(wf.scope,reuse=tf.AUTO_REUSE):
         with wf.graph.as_default():
             Eloc=tf.placeholder(dtype=tf.float64,shape=[numsamples])
             samp=tf.placeholder(dtype=tf.int32,shape=[numsamples,N])
-            log_probs_=wf.log_probability(samp,inputdim=2)
-
+            
+            
+            log_probs_=tf.reduce_sum(tf.log(wf.log_probability(samp, inputdim=2)), axis=1)
+            
+            #print(log_probs_)
+            
             #now calculate the fake cost function to enjoy the properties of automatic differentiation
-            # Eloc is not differentiated since it is defined as a placeholder, so there is no need to use tf.stop_gradient
             cost = tf.reduce_mean(tf.multiply(log_probs_,Eloc)) - tf.reduce_mean(Eloc)*tf.reduce_mean(log_probs_)
 
             #Calculate Gradients---------------
@@ -163,25 +174,12 @@ def run_1DTFIM(numsteps = 10**4, systemsize = 20, num_units = 50, Bx = 1, num_la
             #End calculate Gradients---------------
 
             optstep=optimizer.apply_gradients(zip(gradients,variables), global_step = global_step)
-            sess.run(tf.variables_initializer(optimizer.variables()))
+            sess.run(tf.variables_initializer(optimizer.variables()),feed_dict={learningrate_placeholder: lr})
             saver=tf.train.Saver()
     #----------------------------------------------------------------
 
     meanEnergy=[]
     varEnergy=[]
-
-    #Loading previous trainings (uncomment if you wanna restore a previous session)----------
-    # path=os.getcwd()
-    # ending='_units'
-    # for u in units:
-    #     ending+='_{0}'.format(u)
-    # savename = '_TFIM'
-    # with tf.variable_scope(wf.scope,reuse=tf.AUTO_REUSE):
-    #     with wf.graph.as_default():
-    #         saver.restore(sess,path+filename)
-    #         meanEnergy=np.load('../Check_Points/1DTFIM/meanEnergy_N'+str(N)+'_samp'+str(numsamples)+'_Jz'+str(Jz[0])+'_Bx'+str(Bx)+'_GRURNN_OBC'+ savename + ending + '.npy').tolist()
-    #         varEnergy=np.load('../Check_Points/1DTFIM/varEnergy_N'+str(N)+'_samp'+str(numsamples)+'_Jz'+str(Jz[0])+'_Bx'+str(Bx)+'_GRURNN_OBC'+ savename + ending + '.npy').tolist()
-    #------------------------------------
 
     with tf.variable_scope(wf.scope,reuse=tf.AUTO_REUSE):
         with wf.graph.as_default():
@@ -191,8 +189,12 @@ def run_1DTFIM(numsteps = 10**4, systemsize = 20, num_units = 50, Bx = 1, num_la
           samples = np.ones((numsamples, N), dtype=np.int32)
 
           samples_placeholder=tf.placeholder(dtype=tf.int32,shape=(None,N))
-          log_probs_tensor=wf.log_probability(samples_placeholder,inputdim=2)
-
+          #indicator_placeholder = tf.placeholder(dtype = tf.bool, shape= (None))
+            
+          log_probs_tensor=wf.log_probability(samples_placeholder, inputdim=2)
+          
+          
+          
           queue_samples = np.zeros((N+1, numsamples, N), dtype = np.int32) #Array to store all the diagonal and non diagonal matrix elements (We create it here for memory efficiency as we do not want to allocate it at each training step)
           log_probs = np.zeros((N+1)*numsamples, dtype=np.float64) #Array to store the log_probs of all the diagonal and non diagonal matrix elements (We create it here for memory efficiency as we do not want to allocate it at each training step)
 
@@ -200,6 +202,8 @@ def run_1DTFIM(numsteps = 10**4, systemsize = 20, num_units = 50, Bx = 1, num_la
           for it in range(len(meanEnergy),numsteps+1):
 
               samples=sess.run(samples_)
+            
+              #print(np.exp(log_probs))
                 
               #Estimating local_energies
               local_energies = Ising_local_energies(Jz, Bx, samples, queue_samples, log_probs_tensor, samples_placeholder, log_probs, sess)
@@ -214,18 +218,16 @@ def run_1DTFIM(numsteps = 10**4, systemsize = 20, num_units = 50, Bx = 1, num_la
               if it%10==0:
                   print('mean(E): {0}, var(E): {1}, #samples {2}, #Step {3} \n\n'.format(meanE,varE,numsamples, it))
 
-             #Comment if you don't want to save
-              if it%500==0: 
-                  #Saving the model
-                  saver.save(sess,path+'/'+filename)
-
               sess.run(optstep,feed_dict={Eloc:local_energies,samp:samples,learningrate_placeholder: lr})
-
-             #Comment if you don't want to save
-              if it%10==0:
-                  #Saving the performances
-                  np.save('../Check_Points/1DTFIM/meanEnergy_N'+str(N)+'_samp'+str(numsamples)+'_Jz'+str(Jz[0])+'_Bx'+str(Bx)+'_GRURNN_OBC'+ savename + ending + '.npy',meanEnergy)
-                  np.save('../Check_Points/1DTFIM/varEnergy_N'+str(N)+'_samp'+str(numsamples)+'_Jz'+str(Jz[0])+'_Bx'+str(Bx)+'_GRURNN_OBC'+ savename + ending + '.npy',varEnergy)
-    
+          saver.save(sess,path+'/'+filename)
+          '''
+          save_samples = wf.sample(numsamples = 1000000, inputdim = 2)
+          save_samples_= sess.run(save_samples)
+          np.save("save_samples_"+str(Bx)+".npy", save_samples_)
+          basis = np.array(list(itertools.product([0, 1], repeat=N)))
+          probs_all_basis = sess.run(log_probs_tensor, feed_dict={samples_placeholder: basis})
+          np.save('probs_all_basis'+str(Bx)+'.npy',probs_all_basis)
+          print(probs_all_basis.shape)
+          '''
     return meanEnergy, varEnergy
     #----------------------------
