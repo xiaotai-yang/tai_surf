@@ -1,0 +1,2 @@
+model_checkpoint_path: "C:\\Users\\Administrator\\PycharmProjects\\tai_surf\\entanglement_swapping\\RNN//../Check_Points/RNNwavefunction_N32_samp128_lradap0.0005_complexGRURNN_ES_units_64_64_seed113.ckpt"
+all_model_checkpoint_paths: "C:\\Users\\Administrator\\PycharmProjects\\tai_surf\\entanglement_swapping\\RNN//../Check_Points/RNNwavefunction_N32_samp128_lradap0.0005_complexGRURNN_ES_units_64_64_seed113.ckpt"

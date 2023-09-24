@@ -156,7 +156,7 @@ def run_(numsteps = 10**5, systemsize = 12,  num_units = 50, num_layers = 1, num
 
     savename = '_ES'
 
-    filename='/../Check_Points/ES/X_RNNwavefunction_N'+str(N)+'_samp'+str(numsamples)+'_lradap'+str(lr)+'_complexGRURNN'+ savename + ending +'_zeromag.ckpt'
+    filename='/../Check_Points/X_RNNwavefunction_N'+str(N)+'_samp'+str(numsamples)+'_lradap'+str(lr)+'_complexGRURNN'+ savename + ending +'_zeromag.ckpt'
 
     with tf.variable_scope(wf.scope,reuse=tf.AUTO_REUSE):
         with wf.graph.as_default():
@@ -262,8 +262,8 @@ def run_(numsteps = 10**5, systemsize = 12,  num_units = 50, num_layers = 1, num
 
               #Comment if you dont want to save or if saving is not working
               if it%10==0:
-                 np.savetxt('../Check_Points/ES/X_meanEnergy_N'+str(N)+'_samp'+str(numsamples)+'_lradap'+str(lr)+'_complexGRURNN'+ savename + ending +'_zeromag.txt',meanEnergy)
-                 np.savetxt('../Check_Points/ES/X_varEnergy_N'+str(N)+'_samp'+str(numsamples)+'_lradap'+str(lr)+'_complexGRURNN'+ savename + ending +'_zeromag.txt',varEnergy)
+                 np.savetxt('../Check_Points/X_meanEnergy_N'+str(N)+'_samp'+str(numsamples)+'_lradap'+str(lr)+'_complexGRURNN'+ savename + ending +'_zeromag.txt',meanEnergy)
+                 np.savetxt('../Check_Points/X_varEnergy_N'+str(N)+'_samp'+str(numsamples)+'_lradap'+str(lr)+'_complexGRURNN'+ savename + ending +'_zeromag.txt',varEnergy)
 
               #Comment if you dont want to save or if saving is not working
               if it%500==0: #500 can be changed to suite your chosen number of iterations and to avoid slow down by saving the model too often.
