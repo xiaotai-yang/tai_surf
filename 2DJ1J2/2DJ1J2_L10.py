@@ -13,7 +13,7 @@ from tensorflow.python.client import device_lib
 # from MDTensorizedcell import MDRNNcell #A cell without gating mechanism
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--L', type = int, default=10)
+parser.add_argument('--L', type = int, default=4)
 parser.add_argument('--numunits', type = int, default=100)
 parser.add_argument('--lr', type = float, default=5e-4)
 parser.add_argument('--J2', type = float, default=0.0) # J2 = 1 -> triangular and J2 = 0.0 -> square lattice

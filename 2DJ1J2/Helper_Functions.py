@@ -151,7 +151,7 @@ def Triangular2DHeis_LocalEnergies(J,J2,Nx,Ny,sigmasp,sigmas,H,sigmaH,matrixelem
         sigmas_length += num #Increasing the length of matrix elements sigmas
 
 
-    return slices,sigmas_length
+    return slices, sigmas_length
 ########################################################################################
 
 

@@ -498,7 +498,7 @@ class RNNwavefunction(object):
             cond_probs = tf.concat(list_cond_prob, 0)
         else:
             log_prob_temp, log_phase_temp, cond_probs = self.log_amplitude_general(samples, inputdim)
-        return tf.complex(0.5*log_prob_temp,log_phase_temp), cond_probs
+        return tf.complex(0.5*log_prob_temp, log_phase_temp), cond_probs
         
     def log_amplitudes_fromsymmetrygroup(self, list_samples, inputdim, group_character_signs):
 
