@@ -130,7 +130,7 @@ def gru_rnn_step(local_inputs, local_states, params):
 '''    
 
 @partial(jax.jit, static_argnames=['num_samples','fixed_params'])    
-def sample_prob(num_samples, params, fixed_params):
+def sample_prob(num_samples, params, fixed_params, key):
     Ny, Nx, mag_fixed, magnetization,  units= fixed_params
     ny_nx_indices = jnp.array([[(i, j) for j in range(Nx)] for i in range(Ny)])
     inputs_init_x = jnp.repeat(jnp.expand_dims(jnp.array([1.,0.]), axis=0), Nx, axis=0)
@@ -199,7 +199,7 @@ def sample_prob(num_samples, params, fixed_params):
     
 
 
-    init = batch_rnn_states_init_x, batch_rnn_states_init_y, 0, jnp.zeros(num_samples), PRNGKey(3), batch_inputs_init_x, batch_inputs_init_y, mag_fixed, magnetization, num_samples, Ny, Nx, params
+    init = batch_rnn_states_init_x, batch_rnn_states_init_y, 0, jnp.zeros(num_samples), key, batch_inputs_init_x, batch_inputs_init_y, mag_fixed, magnetization, num_samples, Ny, Nx, params
 
     __, (samples, probs, phase) = scan(scan_fun_2d, init, ny_nx_indices)
 

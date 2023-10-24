@@ -13,11 +13,11 @@ from tensorflow.python.client import device_lib
 # from MDTensorizedcell import MDRNNcell #A cell without gating mechanism
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--L', type = int, default=4)
-parser.add_argument('--numunits', type = int, default=100)
+parser.add_argument('--L', type = int, default=10)
+parser.add_argument('--numunits', type = int, default=64)
 parser.add_argument('--lr', type = float, default=5e-4)
 parser.add_argument('--J2', type = float, default=0.0) # J2 = 1 -> triangular and J2 = 0.0 -> square lattice
-parser.add_argument('--J', type = float, default=0.2)
+parser.add_argument('--J', type = float, default=0.0)
 parser.add_argument('--lrthreshold', type = float, default=5e-4)
 parser.add_argument('--lrdecaytime', type = float, default=5000)
 parser.add_argument('--lrdecaytime_conv', type = float, default=2500)
@@ -33,11 +33,11 @@ parser.add_argument('--gradient_clipvalue', type = float, default=10.0)
 parser.add_argument('--normalized_gradients', type = str2bool, default=False)
 parser.add_argument('--dotraining', type = str2bool, default=True)
 parser.add_argument('--T0', type = float, default= 0.5)
-parser.add_argument('--Nwarmup', type = int, default=1000)
-parser.add_argument('--Nannealing', type = int, default=15) #10000
-parser.add_argument('--Ntrain', type = int, default=1000)
+parser.add_argument('--Nwarmup', type = int, default=0)
+parser.add_argument('--Nannealing', type = int, default=0) #10000
+parser.add_argument('--Ntrain', type = int, default=0)
 parser.add_argument('--Nconvergence', type = int, default=20000)
-parser.add_argument('--numsamples', type = int, default=100)
+parser.add_argument('--numsamples', type = int, default=128)
 parser.add_argument('--testing_sample', type = int, default=5e+4)
 # #To fine tune the model
 parser.add_argument('--lrthreshold_conv', type = float, default=1e-4)
@@ -348,7 +348,7 @@ with tf.compat.v1.variable_scope(wf.scope,reuse=tf.compat.v1.AUTO_REUSE):
                     else:
                         T = 0.0
 
-                    if (it+1)%5 == 0:
+                    if (it+1)%100 == 0:
                         print("Temperature = ", T)
                     ####### End of thermal pre-annealing -----------
 
@@ -363,7 +363,7 @@ with tf.compat.v1.variable_scope(wf.scope,reuse=tf.compat.v1.AUTO_REUSE):
                     T = 0.0
                 ##############################################################################
 
-                if (it+1)%100==0 or it==0:
+                if (it+1)%5==0 or it==0:
                     print("learning_rate =", lr_adap)
                     print("Magnetization =", np.mean(np.sum(2*samples-1, axis = (1,2))))
                     if T0 != 0:
