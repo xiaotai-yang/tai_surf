@@ -1,2 +1,0 @@
-model_checkpoint_path: "C:\\Users\\Administrator\\PycharmProjects\\RNNWavefunctions\\1DXXZ//../Check_Points/J1Jz/RNNwavefunction_N96_samp128_lradap0.0005_complexGRURNN_J1Jz0.5_units_256_zeromag.ckpt"
-all_model_checkpoint_paths: "C:\\Users\\Administrator\\PycharmProjects\\RNNWavefunctions\\1DXXZ//../Check_Points/J1Jz/RNNwavefunction_N96_samp128_lradap0.0005_complexGRURNN_J1Jz0.5_units_256_zeromag.ckpt"

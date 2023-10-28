@@ -1,2 +1,0 @@
-model_checkpoint_path: "/central/home/tyang2/CMI/1DTFIM//../Check_Points/1DTFIM/RNNwavefunction_N96_samp128_Jz1Bx2.0_GRURNN_OBC_units_128.ckpt"
-all_model_checkpoint_paths: "/central/home/tyang2/CMI/1DTFIM//../Check_Points/1DTFIM/RNNwavefunction_N96_samp128_Jz1Bx2.0_GRURNN_OBC_units_128.ckpt"

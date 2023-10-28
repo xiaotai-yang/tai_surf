@@ -42,9 +42,9 @@ def schedule(step: float, min_lr: float, max_lr: float, period: float) -> float:
     return min_lr + (max_lr - min_lr) * oscillation
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--L', type = int, default=10)
-parser.add_argument('--numunits', type = int, default=64)
-parser.add_argument('--lr', type = float, default=5e-4)
+parser.add_argument('--L', type = int, default=6)
+parser.add_argument('--numunits', type = int, default=128)
+parser.add_argument('--lr', type = float, default=1e-4)
 parser.add_argument('--J1', type = float, default=1.0) 
 parser.add_argument('--J2', type = float, default=0.2)
 parser.add_argument('--J3', type = float, default=0.0)
@@ -55,14 +55,14 @@ parser.add_argument('--Sz', type = int, default=0)
 parser.add_argument('--spinparity_fixed', type = bool, default=False)
 parser.add_argument('--spinparity_value', type = int, default=1)
 parser.add_argument('--gradient_clip', type = bool, default=True)
-parser.add_argument('--gradient_clipvalue', type = float, default=20.0)
+parser.add_argument('--gradient_clipvalue', type = float, default=10.0)
 parser.add_argument('--dotraining', type = bool, default=True)
 parser.add_argument('--T0', type = float, default= 0.5)
-parser.add_argument('--Nwarmup', type = int, default=0)
-parser.add_argument('--Nannealing', type = int, default=0) #10000
-parser.add_argument('--Ntrain', type = int, default=0)
-parser.add_argument('--Nconvergence', type = int, default=10000)
-parser.add_argument('--numsamples', type = int, default=128)
+parser.add_argument('--Nwarmup', type = int, default=2000)
+parser.add_argument('--Nannealing', type = int, default=10) #10000
+parser.add_argument('--Ntrain', type = int, default=2000)
+parser.add_argument('--Nconvergence', type = int, default=50000)
+parser.add_argument('--numsamples', type = int, default=256)
 parser.add_argument('--testing_sample', type = int, default=5e+4)
 parser.add_argument('--lrthreshold_convergence', type = float, default=5e-4)
 parser.add_argument('--lrdecaytime_convergence', type = float, default=2500)
@@ -104,10 +104,9 @@ key = PRNGKey(111)
 meanEnergy=[]
 varEnergy=[]
 
-optimizer = optax.adam(lr)
 
 N = Nx*Ny
-adam_optimizer = optax.adam(lr)
+
 if (rnn_type == "vanilla"):
     params = init_vanilla_params(Nx, Ny, units, input_size, key)
     #batch_rnn = vmap(vanilla_rnn_step, (0, 0, None)) 
@@ -121,6 +120,11 @@ elif (rnn_type == "gru"):
 grad_f = jax.jit(jax.grad(compute_cost), static_argnums=(1,))
 fixed_params = Ny, Nx, mag_fixed, magnetization, units
 # Assuming params are your model's parameters:
+warmup_cosine_decay_scheduler = optax.warmup_cosine_decay_schedule(init_value=lr, peak_value=lrthreshold,
+                                                                   warmup_steps=Nwarmup,
+                                                                   decay_steps=numsteps, end_value=1e-5)
+optimizer = optax.adamw(learning_rate=warmup_cosine_decay_scheduler)
+
 optimizer_state = optimizer.init(params)
 
 T = T0
@@ -199,7 +203,7 @@ for it in range(0, numsteps):
         grads = jax.tree_map(clip_grad, grads)
     #print("clip_grads:", grads)
     # Update the optimizer state and the parameters
-    updates, optimizer_state = optimizer.update(grads, optimizer_state)
+    updates, optimizer_state = optimizer.update(grads, optimizer_state, params)
     params = optax.apply_updates(params, updates)
 
     if (it%500 == 0):

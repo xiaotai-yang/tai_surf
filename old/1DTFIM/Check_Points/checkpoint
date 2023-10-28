@@ -1,0 +1,2 @@
+model_checkpoint_path: "C:\\Users\\Administrator\\PycharmProjects\\RNNWavefunctions\\Tutorials\\1DTFIM/Check_Points/RNNwavefunction_N12_samp512_Jz1Bx3.5_GRURNN_OBC_units_32.ckpt"
+all_model_checkpoint_paths: "C:\\Users\\Administrator\\PycharmProjects\\RNNWavefunctions\\Tutorials\\1DTFIM/Check_Points/RNNwavefunction_N12_samp512_Jz1Bx3.5_GRURNN_OBC_units_32.ckpt"

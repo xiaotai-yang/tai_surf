@@ -163,7 +163,7 @@ def J1J2J3_MatrixElements_numpy(sigmap,diag_amp,J1,J2,J3,Nx,Ny):    #sigmap is (
     num_avail_basis = np.sum(mask, axis=(1, 2))
     
     #print("repeat_time:",time.time()-t)
-    matrixelements = np.concatenate((matrixelements, np.repeat(0.5*J1, num_avail_basis.sum(), axis=0)), axis = 0)
+    matrixelements = np.concatenate((matrixelements, np.repeat(-0.5*J1, num_avail_basis.sum(), axis=0)), axis = 0)
     log_diag_amp_array = np.concatenate((log_diag_amp, np.repeat(log_diag_amp, num_avail_basis, axis=0)), axis = 0)
     nonzero_loc = np.array(np.nonzero(mask))
     num_nonzero = nonzero_loc.shape[1]
@@ -185,7 +185,7 @@ def J1J2J3_MatrixElements_numpy(sigmap,diag_amp,J1,J2,J3,Nx,Ny):    #sigmap is (
     #J1 →
     mask = (sigmap[:, :, :-1] != sigmap[:, :, 1:])           
     num_avail_basis = np.sum(mask, axis=(1, 2))
-    matrixelements = np.concatenate((matrixelements, np.repeat(0.5*J1, num_avail_basis.sum(), axis=0)), axis = 0)
+    matrixelements = np.concatenate((matrixelements, np.repeat(-0.5*J1, num_avail_basis.sum(), axis=0)), axis = 0)
     log_diag_amp_array = np.concatenate((log_diag_amp_array, np.repeat(log_diag_amp, num_avail_basis, axis=0)), axis = 0)
     nonzero_loc = np.array(np.nonzero(mask))
     num_nonzero = nonzero_loc.shape[1]
@@ -311,3 +311,33 @@ def compute_block_sum(amp_off_diag, matrixelements_off_diag, ind1, ind2):
     result = jnp.sum(mask * amp_off_diag[None, None, :] * matrixelements_off_diag[None, None, :], axis=-1)
 
     return result
+class Hamiltonian:
+    def __init__(self, J1, J2, J3, Nx, Ny, num_samples, pauli_string):
+        self.J1 = J1
+        self.J2 = J2
+        self.J3 = J3
+        self.Nx = Nx
+        self.Ny = Ny
+        self.num_samples = num_samples
+
+    def __call__(self, pauli_string):
+
+    def add(self, string):
+        if string
+def paulix(sample ,position):
+    sample[position] = (sample[position]+1)%2
+    return sample, 1
+
+def pauliz(sample, position):
+    return sample, (-1)**np.sum(sample[position])
+# input: array of string with size [num_local_terms] and each element is a string like "01222301" and a coefficient in the beginning c_i
+
+
+def f(body_num, pauli, location, strength):
+
+    def matrixelement():
+
+["11","11","22"]
+[[[0,0],[]],]
+
+[0.5,0.5,0.5,0.5,0.5]

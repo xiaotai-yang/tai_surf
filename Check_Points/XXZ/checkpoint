@@ -1,2 +1,0 @@
-model_checkpoint_path: "/central/home/tyang2/CMI/1DXXZ//../Check_Points/XXZ/RNNwavefunction_N96_samp128_lradap0.0005_complexGRURNN_J1Jz0.8_units_256_zeromag.ckpt"
-all_model_checkpoint_paths: "/central/home/tyang2/CMI/1DXXZ//../Check_Points/XXZ/RNNwavefunction_N96_samp128_lradap0.0005_complexGRURNN_J1Jz0.8_units_256_zeromag.ckpt"

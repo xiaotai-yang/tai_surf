@@ -1,2 +1,0 @@
-model_checkpoint_path: "C:\\Users\\Administrator\\PycharmProjects\\RNNWavefunctions\\2DTFIM_2DRNN_new/../Check_Points/2DTFIM/RNNwavefunction_2DVanillaRNN_12x12_Bx3_lradap0.005_samp250units_100.ckpt"
-all_model_checkpoint_paths: "C:\\Users\\Administrator\\PycharmProjects\\RNNWavefunctions\\2DTFIM_2DRNN_new/../Check_Points/2DTFIM/RNNwavefunction_2DVanillaRNN_12x12_Bx3_lradap0.005_samp250units_100.ckpt"
