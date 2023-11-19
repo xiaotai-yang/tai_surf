@@ -142,7 +142,7 @@ for it in range(0, numsteps):
     samples, sample_amp = sample_prob(numsamples, params, fixed_params, key)
     key, subkey1, subkey2 = split(key, 3)
     #t = time.time()
-    matrixelements, log_diag_amp, sigmas, basis_where = J1J2J3_MatrixElements_numpy(np.array(samples), np.array(sample_amp), J1, J2, J3, Nx, Ny)
+    matrixelements, log_diag_amp, sigmas, basis_where = J1J2J3_MatrixElements_numpy(np.array(samples), np.array(sample_amp), J1, J2, J3)
     #print("matrixelement_t:", time.time()-t)
     left_basis = (2*Nx*Ny)*numsamples-matrixelements.shape[0]
     if left_basis>0:
@@ -206,8 +206,8 @@ for it in range(0, numsteps):
     updates, optimizer_state = optimizer.update(grads, optimizer_state, params)
     params = optax.apply_updates(params, updates)
 
-    if (it%500 == 0):
+    if (it % 500 == 0):
         params_dict = jax.tree_util.tree_leaves(params)
-        with open(f"params/params_L{L}.pkl", "wb") as f:
+        with open(f"params/params_L{L}_J1{J1}_J2{J2}_numsamples{numsamples}_numunits{units}_rnntype_{rnn_type}.pkl","wb") as f:
             pickle.dump(params_dict, f)
     np.save("meanE.npy", meanE)    

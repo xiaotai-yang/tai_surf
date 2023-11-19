@@ -47,7 +47,6 @@ parser.add_argument('--numunits', type = int, default=64)
 parser.add_argument('--lr', type = float, default=5e-4)
 parser.add_argument('--J1', type = float, default=1.0) 
 parser.add_argument('--J2', type = float, default=0.2)
-parser.add_argument('--J3', type = float, default=0.0)
 parser.add_argument('--lrthreshold', type = float, default=5e-4)
 parser.add_argument('--lrdecaytime', type = float, default=5000)
 parser.add_argument('--mag_fixed', type = bool, default=True)
@@ -84,7 +83,6 @@ spinparity_fixed = args.spinparity_fixed
 spinparity_value = args.spinparity_value
 J1 = args.J1
 J2 = args.J2
-J3 = args.J3
 gradient_clip = args.gradient_clip
 gradient_clipvalue = args.gradient_clipvalue
 dotraining = args.dotraining
@@ -97,8 +95,7 @@ testing_sample = args.testing_sample
 rnn_type = args.rnn_type
 input_size = 2
 L = args.L
-Nx = L
-Ny = L
+N = L
 key = PRNGKey(111)
 
 meanEnergy=[]
@@ -106,20 +103,19 @@ varEnergy=[]
 
 optimizer = optax.adam(lr)
 
-N = Nx*Ny
 adam_optimizer = optax.adam(lr)
 if (rnn_type == "vanilla"):
-    params = init_vanilla_params(Nx, Ny, units, input_size, key)
+    params = init_vanilla_params(N, units, input_size, key)
     #batch_rnn = vmap(vanilla_rnn_step, (0, 0, None)) 
 elif (rnn_type == "multilayer_vanilla"):
-    params = init_multilayer_vanilla_params(Nx, Ny, units, input_size, key)
+    params = init_multilayer_vanilla_params(N, units, input_size, key)
     #batch_rnn = vmap(multilayer_vanilla_rnn_step, (0, 0, None))
 elif (rnn_type == "gru"):
-    params = init_gru_params(Nx, Ny, units, input_size, key)    
+    params = init_gru_params(N, units, input_size, key)
     
 
 grad_f = jax.jit(jax.grad(compute_cost), static_argnums=(1,))
-fixed_params = Ny, Nx, mag_fixed, magnetization, units
+fixed_params = N, mag_fixed, magnetization, units
 # Assuming params are your model's parameters:
 optimizer_state = optimizer.init(params)
 
@@ -137,21 +133,19 @@ for it in range(0, numsteps):
     #t0 = time.time()
     samples, sample_amp = sample_prob(numsamples, params, fixed_params, key)
     key, subkey1, subkey2 = split(key, 3)
-    #t = time.time()
-    matrixelements, log_diag_amp, sigmas, basis_where = J1J2J3_MatrixElements_numpy(np.array(samples), np.array(sample_amp), J1, J2, J3, Nx, Ny)
+
+    matrixelements, log_diag_amp, sigmas, basis_where = J1J2_MatrixElements_numpy(np.array(samples), np.array(sample_amp), J1, J2)
     #print("matrixelement_t:", time.time()-t)
-    left_basis = (2*Nx*Ny)*numsamples-matrixelements.shape[0]
+    left_basis = (2*N)*numsamples-matrixelements.shape[0]
     if left_basis>0:
-        sigmas = jnp.concatenate((sigmas, jnp.zeros((left_basis, Ny, Nx))), axis=0).astype(int)
+        sigmas = jnp.concatenate((sigmas, jnp.zeros((left_basis, N))), axis=0).astype(int)
         matrixelements = jnp.concatenate((matrixelements, jnp.zeros(left_basis)), axis=0)
         log_diag_amp = jnp.concatenate((log_diag_amp, jnp.zeros(left_basis)), axis=0)
     else: 
         print("error")
-    #t = time.time()
+
     log_all_amp = log_amp(sigmas, params, fixed_params)
     amp =jnp.exp(log_all_amp-log_diag_amp)
-
-    #print("calculation_t:", time.time()-t)
     diag_local_E = matrixelements[:numsamples]*amp[:numsamples]
     matrixelements_off_diag, amp_off_diag = matrixelements[numsamples:-left_basis], amp[numsamples:-left_basis]  
     basis_where = basis_where.reshape(-1, numsamples+1)
@@ -160,7 +154,7 @@ for it in range(0, numsteps):
 
     Eloc = jnp.sum(block_sum, axis=0)+diag_local_E
     #Eloc = jax.lax.stop_gradient(Get_Elocs(J1,J2,J3, Nx, Ny, samples, params, fixed_params))
-    #print("total_t:", time.time()-t0)
+
     meanE = jnp.mean(Eloc)
     varE = jnp.var(Eloc)
 
@@ -185,7 +179,7 @@ for it in range(0, numsteps):
         varF = jnp.var(Eloc + T*jnp.real(jnp.log(sample_amp*sample_amp.conjugate())))
     if (it+1)%5==0 or it==0:
         print("learning_rate =", lr)
-        print("Magnetization =", jnp.mean(jnp.sum(2*samples-1, axis = (1,2))))
+        print("Magnetization =", jnp.mean(jnp.sum(2*samples-1, axis = 1)))
         if T0 != 0:
             print('mean(E): {0}, varE: {1}, meanF: {2}, varF: {3}, #samples {4}, #Step {5} \n\n'.format(meanE,varE, meanF, varF, numsamples, it+1))
         elif T0 == 0.0:
@@ -202,8 +196,8 @@ for it in range(0, numsteps):
     updates, optimizer_state = optimizer.update(grads, optimizer_state)
     params = optax.apply_updates(params, updates)
 
-    if (it%500 == 0):
+    if (it % 500 == 0):
         params_dict = jax.tree_util.tree_leaves(params)
-        with open(f"params/params_L{L}.pkl", "wb") as f:
+        with open(f"params/params_L{L}_J1{J1}_J2{J2}_numsamples{numsamples}_numunits{units}_rnntype_{rnn_type}.pkl","wb") as f:
             pickle.dump(params_dict, f)
     np.save("meanE.npy", meanE)    

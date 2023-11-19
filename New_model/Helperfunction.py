@@ -15,7 +15,7 @@ from math import ceil
 from RNNfunction import *
 import numpy as np
 
-def J1J2J3_MatrixElements(sigmap,diag_amp,J1,J2,J3,Nx,Ny):    #sigmap is (num_samples ,input basis)
+def J1J2J3_MatrixElements(sigmap,diag_amp,J1,J2,J3):    #sigmap is (num_samples ,input basis)
 
     #the diagonal part is simply the sum of all Sz-Sz interactions
 
@@ -240,7 +240,7 @@ def J1J2J3_MatrixElements_numpy(sigmap,diag_amp,J1,J2,J3,Nx,Ny):    #sigmap is (
     
     if (J3!=0):
     #J3 ↓↓
-        mask = (sigmap[:-2, :] != sigmap[2:, :])           
+        mask = (sigmap[:, -2] != sigmap[:, 2:])
         num_avail_basis = np.sum(mask, axis=(1, 2))
         matrixelements = np.concatenate((matrixelements, np.repeat(0.5*J3, num_avail_basis.sum(), axis=0)), axis = 0)
         log_diag_amp_array = np.concatenate((log_diag_amp_array, np.repeat(log_diag_amp, num_avail_basis, axis=0)), axis = 0)
@@ -257,7 +257,7 @@ def J1J2J3_MatrixElements_numpy(sigmap,diag_amp,J1,J2,J3,Nx,Ny):    #sigmap is (
         basis_where = np.append(basis_where, basis_where[-1])
         basis_where = np.concatenate((basis_where, np.cumsum(num_avail_basis)+basis_where[-1]), axis = 0) 
     #J3 →→
-        mask = (sigmap[:, :-2] != sigmap[:, 2:])           
+        mask = (sigmap[:, :, :-2] != sigmap[:, :, 2:])
         num_avail_basis = np.sum(mask, axis=(1, 2))
         matrixelements = np.concatenate((matrixelements, np.repeat(0.5*J3, num_avail_basis.sum(), axis=0)), axis = 0)
         log_diag_amp_array = np.concatenate((log_diag_amp_array, np.repeat(log_diag_amp, num_avail_basis, axis=0)), axis = 0)
@@ -311,33 +311,5 @@ def compute_block_sum(amp_off_diag, matrixelements_off_diag, ind1, ind2):
     result = jnp.sum(mask * amp_off_diag[None, None, :] * matrixelements_off_diag[None, None, :], axis=-1)
 
     return result
-class Hamiltonian:
-    def __init__(self, J1, J2, J3, Nx, Ny, num_samples, pauli_string):
-        self.J1 = J1
-        self.J2 = J2
-        self.J3 = J3
-        self.Nx = Nx
-        self.Ny = Ny
-        self.num_samples = num_samples
-
-    def __call__(self, pauli_string):
-
-    def add(self, string):
-        if string
-def paulix(sample ,position):
-    sample[position] = (sample[position]+1)%2
-    return sample, 1
-
-def pauliz(sample, position):
-    return sample, (-1)**np.sum(sample[position])
-# input: array of string with size [num_local_terms] and each element is a string like "01222301" and a coefficient in the beginning c_i
 
 
-def f(body_num, pauli, location, strength):
-
-    def matrixelement():
-
-["11","11","22"]
-[[[0,0],[]],]
-
-[0.5,0.5,0.5,0.5,0.5]
