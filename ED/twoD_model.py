@@ -1,0 +1,75 @@
+import jax
+import netket as nk
+import numpy as np
+from netket.operator.spin import sigmax,sigmaz, sigmap, sigmam
+import time
+from scipy.sparse.linalg import eigsh
+import jax.numpy as jnp
+import matplotlib.pyplot as plt
+from twoD_tool import *
+
+L = 4
+N = L*L
+periodic = False
+hi = nk.hilbert.Spin(s=1 / 2, N =  N)
+model = "2DTFIM"
+
+if model == "2DXXZ":
+    int_ = "delta"
+    params = [1.2, 1.05, 1., 0.95, 0.8, 0.2, -0.2, -0.8, -0.95, -1.0, -1.05, -1.2]  #sigmaz interaction
+elif model == "2DJ1J2":
+    int_ = "J2"
+    params = [0.2, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.8, 1.0, 1.05, 1.2] #J2
+elif model == "2DTFIM":
+    int_ = "B"
+    params =  [0, -0.5, -1.0, -1.2, -1.4, -1.6, -1.8, -2.0, -2.5, -4.0] #magnetic field
+
+for param in params :
+    if model == "2DXXZ":
+        H = sum([2*(sigmap(hi, y*L+x)*sigmam(hi, (y+1)*L+x)+sigmam(hi, y*L+x)*sigmap(hi, (y+1)*L+x))+param*sigmaz(hi, y*L+x)*sigmaz(hi, (y+1)*L+x) for y in range(L-1) for x in range(L)]) #up-down J1
+        H += sum([2*(sigmap(hi, y*L+x)*sigmam(hi, y*L+x+1)+sigmam(hi, y*L+x)*sigmap(hi, y*L+x+1))+param*sigmaz(hi, y*L+x)*sigmaz(hi, y*L+x+1) for y in range(L) for x in range(L-1)]) #left-right J1
+        if (periodic == True):
+            H+= sum([2*(sigmap(hi, x)*sigmam(hi, (L-1)*L+x)+sigmam(hi, x)*sigmap(hi, (L-1)*L+x))+param*sigmaz(hi, x)*sigmaz(hi, (L-1)*L+x) for x in range(L)]) # last row - first row J1
+            H+= sum([2*(sigmap(hi, y*L)*sigmam(hi, y*L+L-1)+sigmam(hi, y*L)*sigmap(hi, y*L+L-1))+param*sigmaz(hi, y*L)*sigmaz(hi, y*L+L-1) for y in range(L)]) # last column - first column J1
+
+    elif model == "2DJ1J2":
+        H = sum([2*(sigmap(hi, y*L+x)*sigmam(hi, (y+1)*L+x)+sigmam(hi, y*L+x)*sigmap(hi, (y+1)*L+x))+sigmaz(hi, y*L+x)*sigmaz(hi, (y+1)*L+x) for y in range(L-1) for x in range(L)]) #up-down J1
+        H += sum([2*(sigmap(hi, y*L+x)*sigmam(hi, y*L+x+1)+sigmam(hi, y*L+x)*sigmap(hi, y*L+x+1))+sigmaz(hi, y*L+x)*sigmaz(hi, y*L+x+1) for y in range(L) for x in range(L-1)]) #left-right J1
+        H += param*sum([2*(sigmap(hi, y*L+x)*sigmam(hi, (y+1)*L+x+1)+sigmam(hi, y*L+x)*sigmap(hi, (y+1)*L+x+1))+sigmaz(hi, y*L+x)*sigmaz(hi, (y+1)*L+x+1) for y in range(L-1) for x in range(L-1)]) #right-down J2
+        H += param*sum([2*(sigmap(hi, y*L+x+1)*sigmam(hi, (y+1)*L+x)+sigmam(hi, y*L+x+1)*sigmap(hi, (y+1)*L+x))+sigmaz(hi, y*L+x+1)*sigmaz(hi, (y+1)*L+x) for y in range(L-1) for x in range(L-1)]) #left-down J2
+        if (periodic == True):
+        #periodic boundary conditions
+            H+= sum([2*(sigmap(hi, x)*sigmam(hi, (L-1)*L+x)+sigmam(hi, x)*sigmap(hi, (L-1)*L+x))+sigmaz(hi, x)*sigmaz(hi, (L-1)*L+x) for x in range(L)]) # last row - first row J1
+            H+= sum([2*(sigmap(hi, y*L)*sigmam(hi, y*L+L-1)+sigmam(hi, y*L)*sigmap(hi, y*L+L-1))+sigmaz(hi, y*L)*sigmaz(hi, y*L+L-1) for y in range(L)]) # last column - first column J1
+            H+= sum([2*(sigmap(hi, y*L+L-1)*sigmam(hi, (y+1)*L)+sigmam(hi, y*L+L-1)*sigmap(hi, (y+1)*L))+sigmaz(hi, y*L+L-1)*sigmaz(hi, (y+1)*L) for y in range(L-1)]) # last column - first column J2 (right down)
+            H+= param*sum([2*(sigmap(hi, y*L)*sigmam(hi, (y+2)*L-1)+sigmam(hi, y*L)*sigmap(hi, (y+2)*L-1))+sigmaz(hi, y*L)*sigmaz(hi, (y+2)*L-1) for y in range(L-1)]) #  last column - first column J2 (left down)
+            H+= param*sum([2*(sigmap(hi, x+1)*sigmam(hi, (L-1)*L+x)+sigmam(hi, x+1)*sigmap(hi, (L-1)*L+x))+sigmaz(hi, x+1)*sigmaz(hi, (L-1)*L+x) for x in range(L-1)]) # last row - first row J2 (right down)
+            H+= param*sum([2*(sigmap(hi, x)*sigmam(hi, (L-1)*L+x+1)+sigmam(hi, x)*sigmap(hi, (L-1)*L+x+1))+sigmaz(hi, x)*sigmaz(hi, (L-1)*L+x+1) for x in range(L-1)]) # last row - first row J2 (left down)
+            H+= param*(2*(sigmap(hi, L*L-1)*sigmam(hi, 0)+sigmam(hi, L*L-1)*sigmap(hi, 0))+sigmaz(hi, L*L-1)*sigmaz(hi, 0)) # right down corner J2
+            H+= param*(2*(sigmap(hi, L*(L-1))*sigmam(hi, L-1)+sigmam(hi, L*(L-1))*sigmap(hi, L-1))+sigmaz(hi, L*(L-1))*sigmaz(hi, L-1)) # left down corner J2
+
+    elif model == "2DTFIM":
+        H = -sum([sigmaz(hi, y*L+x)*sigmaz(hi, (y+1)*L+x) for y in range(L-1) for x in range(L)])  #up-down
+        H -= sum([sigmaz(hi, y*L+x)*sigmaz(hi, y*L+x+1) for y in range(L) for x in range(L-1)]) #left-right
+        H += param*sum([sigmax(hi, y*L+x) for y in range(L) for x in range(L)]) # B
+        if (periodic == True):
+        #periodic boundary conditions
+            H-= sum([sigmaz(hi, x)*sigmaz(hi, (L-1)*L+x) for x in range(L)]) # last row - first row
+            H-= sum([sigmaz(hi, y*L)*sigmaz(hi, y*L+L-1) for y in range(L)]) # last column - first column
+
+    sp_h = H.to_sparse()
+    eig_vals, eig_vecs = eigsh(sp_h, k=2, which="SA")
+    print("eigenvalues with scipy sparse " +int_+"="+str(param) +":", eig_vals)
+    prob_exact = eig_vecs[:,0]**2
+    mag = np.sum(prob_exact*count_diff_ones_zeros(L**2))
+    shape = (2,) * (L**2)
+    prob_exact = prob_exact.reshape(*shape)
+    mean_corr, var_corr = correlation_all(prob_exact, L)
+    cmi = cmi_(prob_exact, L)
+    cmi_all = cmi_traceout(prob_exact, L)
+    np.save("result/"+model+"/gap_"+model+"_L"+str(L)+"_"+int_+"_"+str(param)+"periodic_"+str(periodic)+".npy", np.array(eig_vals[1]-eig_vals[0]))
+    np.save("result/"+model+"/cmi_"+model+"_L"+str(L)+"_"+int_+"_"+str(param)+"periodic_"+str(periodic)+".npy", cmi)
+    np.save("result/"+model+"/mean_corr_"+model+"_L"+str(L)+"_"+int_+"_"+str(param)+"periodic_"+str(periodic)+".npy", mean_corr)
+    np.save("result/"+model+"/var_corr_"+model+"_L"+str(L)+"_"+int_+"_"+str(param)+"periodic_"+str(periodic)+".npy", var_corr)
+    np.save("result/"+model+"/cmi_traceout_"+model+"_L"+str(L)+"_"+int_+"_"+str(param)+"periodic_"+str(periodic)+".npy", cmi_all)
+    np.save("result/"+model+"/mag_"+model+"_L"+str(L)+"_"+int_+"_"+str(param)+"periodic_"+str(periodic)+".npy", mag)
