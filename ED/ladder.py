@@ -26,10 +26,10 @@ for Jv in  Jv_ :
 
         if (periodic == True):
         #periodic boundary conditions
-            H+= 2*sigmap(hi, 0)*sigmap(hi, 2*L-2)+2*sigmam(hi, 0)*sigmam(hi, 2*L-2)+2*sigmap(hi, 1)*sigmap(hi, 2*L-1)+2*sigmam(hi, 1)*sigmam(hi, 2*L-1)+sigmaz(hi, 0)*sigmaz(hi, 2*L-2)+sigmaz(hi, 1)*sigmaz(hi, 2*L-1) #J-parallel
+            H+= 2*sigmap(hi, 0)*sigmam(hi, 2*L-2)+2*sigmam(hi, 0)*sigmap(hi, 2*L-2)+2*sigmap(hi, 1)*sigmam(hi, 2*L-1)+2*sigmam(hi, 1)*sigmap(hi, 2*L-1)+sigmaz(hi, 0)*sigmaz(hi, 2*L-2)+sigmaz(hi, 1)*sigmaz(hi, 2*L-1) #J-parallel
 
-            H+= Jx*(2*sigmap(hi, 0)*sigmap(hi, 2*L-1)+2*sigmam(hi, 0)*sigmam(hi, 2*L-1)+2*sigmap(hi, 1)*sigmap(hi, 2*L-2)+2*sigmam(hi, 1)*sigmam(hi, 2*L-2)+sigmaz(hi, 0)*sigmaz(hi, 2*L-1)+sigmaz(hi, 1)*sigmaz(hi, 2*L-2)) #J-cross
-
+            H+= Jx*(2*sigmap(hi, 0)*sigmam(hi, 2*L-1)+2*sigmam(hi, 0)*sigmap(hi, 2*L-1)+2*sigmap(hi, 1)*sigmam(hi, 2*L-2)+2*sigmam(hi, 1)*sigmap(hi, 2*L-2)+sigmaz(hi, 0)*sigmaz(hi, 2*L-1)+sigmaz(hi, 1)*sigmaz(hi, 2*L-2)) #J-cross
+        H/=4
         sp_h = H.to_sparse()
         eig_vals, eig_vecs = eigsh(sp_h, k=2, which="SA")
         print("eigenvalues with scipy sparse Jv="+str(Jv)+ "_Jx="+ str(Jx) +":", eig_vals)
