@@ -31,7 +31,7 @@ for param in params :
         if (periodic == True):
             H+= sum([2*(sigmap(hi, x)*sigmam(hi, (L-1)*L+x)+sigmam(hi, x)*sigmap(hi, (L-1)*L+x))+param*sigmaz(hi, x)*sigmaz(hi, (L-1)*L+x) for x in range(L)]) # last row - first row J1
             H+= sum([2*(sigmap(hi, y*L)*sigmam(hi, y*L+L-1)+sigmam(hi, y*L)*sigmap(hi, y*L+L-1))+param*sigmaz(hi, y*L)*sigmaz(hi, y*L+L-1) for y in range(L)]) # last column - first column J1
-
+        H/=4
     elif model == "2DJ1J2":
         H = sum([2*(sigmap(hi, y*L+x)*sigmam(hi, (y+1)*L+x)+sigmam(hi, y*L+x)*sigmap(hi, (y+1)*L+x))+sigmaz(hi, y*L+x)*sigmaz(hi, (y+1)*L+x) for y in range(L-1) for x in range(L)]) #up-down J1
         H += sum([2*(sigmap(hi, y*L+x)*sigmam(hi, y*L+x+1)+sigmam(hi, y*L+x)*sigmap(hi, y*L+x+1))+sigmaz(hi, y*L+x)*sigmaz(hi, y*L+x+1) for y in range(L) for x in range(L-1)]) #left-right J1
@@ -47,16 +47,16 @@ for param in params :
             H+= param*sum([2*(sigmap(hi, x)*sigmam(hi, (L-1)*L+x+1)+sigmam(hi, x)*sigmap(hi, (L-1)*L+x+1))+sigmaz(hi, x)*sigmaz(hi, (L-1)*L+x+1) for x in range(L-1)]) # last row - first row J2 (left down)
             H+= param*(2*(sigmap(hi, L*L-1)*sigmam(hi, 0)+sigmam(hi, L*L-1)*sigmap(hi, 0))+sigmaz(hi, L*L-1)*sigmaz(hi, 0)) # right down corner J2
             H+= param*(2*(sigmap(hi, L*(L-1))*sigmam(hi, L-1)+sigmam(hi, L*(L-1))*sigmap(hi, L-1))+sigmaz(hi, L*(L-1))*sigmaz(hi, L-1)) # left down corner J2
-
+        H/=4
     elif model == "2DTFIM":
         H = -sum([sigmaz(hi, y*L+x)*sigmaz(hi, (y+1)*L+x) for y in range(L-1) for x in range(L)])  #up-down
         H -= sum([sigmaz(hi, y*L+x)*sigmaz(hi, y*L+x+1) for y in range(L) for x in range(L-1)]) #left-right
-        H += param*sum([sigmax(hi, y*L+x) for y in range(L) for x in range(L)]) # B
+        H += 2*param*sum([sigmax(hi, y*L+x) for y in range(L) for x in range(L)]) # B
         if (periodic == True):
         #periodic boundary conditions
             H-= sum([sigmaz(hi, x)*sigmaz(hi, (L-1)*L+x) for x in range(L)]) # last row - first row
             H-= sum([sigmaz(hi, y*L)*sigmaz(hi, y*L+L-1) for y in range(L)]) # last column - first column
-
+        H/=4
     sp_h = H.to_sparse()
     eig_vals, eig_vecs = eigsh(sp_h, k=2, which="SA")
     print("eigenvalues with scipy sparse " +int_+"="+str(param) +":", eig_vals)

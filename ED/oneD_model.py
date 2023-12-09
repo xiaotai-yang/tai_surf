@@ -22,18 +22,19 @@ elif model == "1DTFIM":
 periodic = False
 
 for param in params:
-    if model == ""+model+"":
+    if model == "1DJ1J2":
         H = sum([2*(sigmap(hi,i)*sigmam(hi,(i+1))+sigmam(hi,i)*sigmap(hi,(i+1))) + sigmaz(hi, i)*sigmaz(hi, (i+1))   for i in range(L-1)])
         H += param*sum([2*(sigmap(hi,i)*sigmam(hi,(i+2))+sigmam(hi,i)*sigmap(hi,(i+2))) + sigmaz(hi, i)*sigmaz(hi, (i+2))   for i in range(L-2)])
         if periodic:
             H += 2*(sigmap(hi,0)*sigmam(hi,L-1)+sigmam(hi,0)*sigmap(hi,L-1))+sigmaz(hi,0)*sigmaz(hi,L-1)
             H += param*2*(sigmap(hi,0)*sigmam(hi,L-2)+sigmam(hi,0)*sigmap(hi,L-2))+param*sigmaz(hi,0)*sigmaz(hi,L-2)
             H += param*2*(sigmap(hi,L-1)*sigmam(hi, 1)+sigmam(hi,L-1)*sigmap(hi, 1))+param*sigmaz(hi,L-1)*sigmaz(hi,1)
+        H/=4
     elif model == "1DTFIM":
-        H = sum([param * sigmax(hi, i) for i in range(L)])
-        H += sum([-1 * sigmaz(hi, i) * sigmaz(hi, (i + 1)) for i in range(L - 1)])
+        H = sum([param * sigmax(hi, i) for i in range(L)])/2
+        H += sum([-1 * sigmaz(hi, i) * sigmaz(hi, (i + 1)) for i in range(L - 1)])/4
         if periodic:
-            H += -sigmaz(hi, 0) * sigmaz(hi, L - 1)
+            H += -sigmaz(hi, 0) * sigmaz(hi, L - 1)/4
     elif model == "1DXXZ":
         H = sum([2 * (sigmap(hi, i) * sigmam(hi, i + 1) + sigmam(hi, i) * sigmap(hi, i + 1)) + param * sigmaz(hi,
                                                                                                               i) * sigmaz(
@@ -41,7 +42,7 @@ for param in params:
         if periodic:
             H += 2 * (sigmap(hi, 0) * sigmam(hi, 1) + sigmam(hi, 0) * sigmap(hi, 1)) + param * sigmaz(hi, 0) * sigmaz(
                 hi, L - 1)
-
+        H /= 4
     sp_h = H.to_sparse()
     eig_vals, eig_vecs = eigsh(sp_h, k=2, which="SA")
     print("eigenvalues with scipy sparse:", eig_vals)
