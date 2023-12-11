@@ -80,7 +80,7 @@ def cmi_traceout(prob_exact, L):
         A,B,C = ABC(L, i)
         p_ab = prob_exact.sum(axis=tuple(set(range(L))-A))+1e-30
         p_bc = prob_exact.sum(axis=tuple(A.union(set(I))))+1e-30
-        prob_exact_ = prob_exact.sum(axis=tuple(set(I)))+1e-30
+        prob_exact_ = prob_exact.sum(axis=tuple(set(I)))
         cmi[i].append(-np.sum(p_ab*np.log(p_ab))-np.sum(p_bc*np.log(p_bc))+np.sum(prob_exact_*np.log(prob_exact_+1e-30)))
 
         for j in B:
@@ -92,6 +92,7 @@ def cmi_traceout(prob_exact, L):
             tmp -= np.sum(prob_exact_*np.log(prob_exact_+1e-30))
             p_b = prob_exact.sum(axis=tuple(C[j].union(A).union(set(I))))
             tmp -= np.sum(p_b*np.log(p_b))
+            print(tmp)
             cmi[i].append(-tmp)
     return np.array(cmi)
 
