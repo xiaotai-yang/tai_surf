@@ -226,8 +226,8 @@ def sample_prob(num_samples, params, fixed_params, key):
     __, (samples, probs, phase) = scan(scan_fun_2d, init, ny_nx_indices)
 
     probs, phase, samples = jnp.transpose(probs, (2,0,1,3)),jnp.transpose(phase, (2,0,1,3)), jnp.transpose(samples, (2,0,1))
-    #print("sample_probs:", probs)
-    #print("samples:", samples)
+    print("sample_probs:", probs)
+    print("samples:", samples)
     probs, phase = jnp.take_along_axis(probs, samples[..., jnp.newaxis], axis=-1).squeeze(-1), jnp.take_along_axis(phase, samples[..., jnp.newaxis], axis=-1).squeeze(-1)
     
     #jax.debug.print("scan_rnn_params: {}", scan_rnn_params)

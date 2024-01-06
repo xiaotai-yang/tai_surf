@@ -7,53 +7,16 @@ import optax
 import jax
 from jax import numpy as jnp
 from Helperfunction import *
+from Helper_miscelluous import *
 from RNNfunction import *
 import pickle
 from jax import make_jaxpr
 import jax.config
 jax.config.update("jax_enable_x64", False)
 
-def linear_cycling_with_hold(schedule_step, max_lr, min_lr, cycle_steps):
-    if schedule_step <= 8 * cycle_steps:
-        cycle = jnp.floor(1 + schedule_step / (2 * cycle_steps))
-        x = jnp.abs(schedule_step / cycle_steps - 2 * cycle + 1)
-        lr = min_lr + (max_lr - min_lr) * jnp.maximum(0, (1 - x))
-    else:
-        lr = 2*min_lr
-    return lr
-
-def clip_grad(g, clip_norm=10.0):
-    norm = jnp.linalg.norm(g)
-    scale = jnp.minimum(1.0, clip_norm / (norm + 1e-6))
-    return g * scale
-
-@partial(jax.jit, static_argnames=['fixed_parameters'])    
-def compute_cost(parameters, fixed_parameters, samples, Eloc, Temperature):
-    
-    samples = jax.lax.stop_gradient(samples)
-    Eloc = jax.lax.stop_gradient(Eloc)
-    
-    # First term
-
-    log_amps_tensor = log_amp(samples, parameters, fixed_parameters)
-    term1 = 2 * jnp.real(jnp.mean(log_amps_tensor.conjugate() * (Eloc - jnp.mean(Eloc))))
-    # Second term
-    
-    term2 = 4 * Temperature * (jnp.mean(jnp.real(log_amps_tensor) * jax.lax.stop_gradient(jnp.real(log_amps_tensor)))
-               - jnp.mean(jnp.real(log_amps_tensor)) * jnp.mean(jax.lax.stop_gradient(jnp.real(log_amps_tensor))))
-
-    cost = term1 + term2
-    
-    return cost
-
-def schedule(step: float, min_lr: float, max_lr: float, period: float) -> float:
-    """Compute a learning rate that oscillates sinusoidally between min_lr and max_lr."""
-    oscillation = (jnp.sin(jnp.pi * step / period) + 1) / 2  # Will be between 0 and 1
-    return min_lr + (max_lr - min_lr) * oscillation
-
 parser = argparse.ArgumentParser()
-parser.add_argument('--L', type = int, default=10)
-parser.add_argument('--numunits', type = int, default=256)
+parser.add_argument('--L', type = int, default=4)
+parser.add_argument('--numunits', type = int, default=16)
 parser.add_argument('--lr', type = float, default=8e-5)
 parser.add_argument('--lrthreshold', type = float, default=5e-4)
 parser.add_argument('--lrdecaytime', type = float, default=5000)
@@ -68,15 +31,17 @@ parser.add_argument('--T0', type = float, default= 0.0)
 parser.add_argument('--Nwarmup', type = int, default=0)
 parser.add_argument('--Nannealing', type = int, default=0) #10000
 parser.add_argument('--Ntrain', type = int, default=0)
-parser.add_argument('--Nconvergence', type = int, default=12000)
-parser.add_argument('--numsamples', type = int, default=256)
+parser.add_argument('--Nconvergence', type = int, default=10000)
+parser.add_argument('--numsamples', type = int, default=16)
 parser.add_argument('--testing_sample', type = int, default=5e+4)
 parser.add_argument('--lrthreshold_convergence', type = float, default=5e-4)
 parser.add_argument('--lrdecaytime_convergence', type = float, default=2500)
 parser.add_argument('--seed', type = int, default=3)
 parser.add_argument('--rnn_type', type = str, default="tensor_gru")
-parser.add_argument('--cmi_pattern', type = str, default="ordered_random")
-parser.add_argument('--sparsity', type = int, default=4)
+parser.add_argument('--cmi_pattern', type = str, default="no_decay")
+parser.add_argument('--sparsity', type = int, default=0)
+parser.add_argument('--basis_rotation', type = bool, default=False)
+parser.add_argument('--angle', type = float, default=0.000001)
 args = parser.parse_args()
 
 units = args.numunits
@@ -103,6 +68,8 @@ testing_sample = args.testing_sample
 rnn_type = args.rnn_type
 cmi_pattern = args.cmi_pattern
 sparsity = args.sparsity
+basis_rotation = args.basis_rotation
+angle = args.angle
 input_size = 2
 L = args.L
 Nx = L
@@ -112,7 +79,9 @@ diag_bulk, diag_edge, diag_corner =False, False, False
 meanEnergy=[]
 varEnergy=[]
 N = Ny*Nx
-for sparsity in (1,2,3,4,5,6,7,102):
+x , y = jnp.cos(angle), jnp.sin(angle)
+
+for angle in (0., 0.05*jnp.pi, 0.1*jnp.pi, 0.15*jnp.pi, 0.20*jnp.pi, 0.25*jnp.pi, 0.3*jnp.pi, 0.35*jnp.pi, 0.4*jnp.pi, 0.45*jnp.pi, 0.5*jnp.pi):
     print(sparsity)
     if (rnn_type == "vanilla"):
         params = init_vanilla_params(Nx, Ny, units, input_size, key)
@@ -136,51 +105,84 @@ for sparsity in (1,2,3,4,5,6,7,102):
     min_lr = 0.00005
     cycle_steps = 1000  # Adjust based on your training steps
     scheduler = lambda step: linear_cycling_with_hold(step, max_lr, min_lr, cycle_steps)
-    optimizer = optax.adam(learning_rate=scheduler)
+    optimizer = optax.adam(learning_rate=0.0002)
     optimizer_state = optimizer.init(params)
-
+    if (basis_rotation == False):
     # create pauli matrices, 1 stands for pauli x and 3 stands for pauli z
-    pauli_array_bulk, pauli_array_edge, pauli_array_corner  = jnp.repeat(jnp.array([3,1,1,1,1])[None], (Ny-2)*(Nx-2), axis=0), jnp.repeat(jnp.array([3,1,1,1])[None], (Ny+Nx-4)*2, axis=0), jnp.repeat(jnp.array([3,1,1])[None], 4, axis=0)
+        pauli_array_bulk, pauli_array_edge, pauli_array_corner  = jnp.repeat(jnp.array([1,3,3,3,3])[None], (Ny-2)*(Nx-2), axis=0), jnp.repeat(jnp.array([1,3,3,3])[None], (Ny+Nx-4)*2, axis=0), jnp.repeat(jnp.array([1,3,3])[None], 4, axis=0)
+        loc_array_bulk, loc_array_edge, loc_array_corner = loc_array_gf(Ny, Nx)
+    else :
+        '''
+        First repeat for each location then iterate over the combinations
+        [[1,1,1,1,1]...,[1,1,1,1,1],[1,1,1,1,3]...[3,3,3,3,3]]
+        '''
+        pauli_array_bulk, pauli_array_edge, pauli_array_corner = jnp.repeat(generate_combinations(5), (Ny-2)*(Nx-2), axis=0), jnp.repeat(generate_combinations(4),(Ny+Nx-4)*2, axis=0), jnp.repeat(generate_combinations(3), 4, axis=0)
 
-    # The location that each Hamiltonian term acts on
-    loc_array_bulk, loc_array_edge, loc_array_corner = loc_array(Ny, Nx)
-    # label_xxx[y, x] is a dict datatype and it is the location of loc_array_xxx such that pauli_array_bulk.at[label[i][:,0].astype(int), label[i][:,1].astype(int)] will
-    # show the pauli matrix that acts on lattice location
+        # The location that each Hamiltonian term acts on
+        loc_array_bulk, loc_array_edge, loc_array_corner = loc_array_gf(Ny, Nx)
+        loc_array_bulk, loc_array_edge, loc_array_corner  = jnp.tile(loc_array_bulk, (32, 1, 1)), jnp.tile(loc_array_edge, (16, 1, 1)), jnp.tile(loc_array_corner, (8, 1, 1 ))
+
+
+    '''
+    label_xxx[y, x] is a dict datatype and it is the location of loc_array_xxx 
+    such that pauli_array_bulk.at[label[i][:,0].astype(int), label[i][:,1].astype(int)] will
+    show the pauli matrix that acts on lattice location
+    '''
     label_bulk, label_edge, label_corner = location_pauli_label(loc_array_bulk, loc_array_edge, loc_array_corner, Ny, Nx)
     pauli_array_bulk, pauli_array_edge, pauli_array_corner = pauli_cmi_pattern(pauli_array_bulk, pauli_array_edge, pauli_array_corner, label_bulk, label_edge, label_corner, cmi_pattern, key, sparsity, L)
 
-    # We group the location that each Hamiltonian term acts on according to how many x,y,z they have in each term
-    xy_loc_bulk, yloc_bulk, zloc_bulk = local_element_indices_2d(5, pauli_array_bulk, loc_array_bulk)
-    xy_loc_edge, yloc_edge, zloc_edge = local_element_indices_2d(4, pauli_array_edge, loc_array_edge)
-    xy_loc_corner, yloc_corner, zloc_corner = local_element_indices_2d(3, pauli_array_corner, loc_array_corner)
+    '''
+    We group the location that each Hamiltonian term acts on according to how many x,y,z they have in each term
+    XX_loc_YYY is a dict datatype and its key is the number of Z-term and X-term (Z, X) and its value is the location
+    of corresponding XX type of interaction acting on the lattice 
+    '''
+    if (basis_rotation == False):
+        xy_loc_bulk, yloc_bulk, zloc_bulk = local_element_indices_2d(5, pauli_array_bulk, loc_array_bulk)
+        xy_loc_edge, yloc_edge, zloc_edge = local_element_indices_2d(4, pauli_array_edge, loc_array_edge)
+        xy_loc_corner, yloc_corner, zloc_corner = local_element_indices_2d(3, pauli_array_corner, loc_array_corner)
+        off_diag_bulk_count, off_diag_edge_count, off_diag_corner_count = off_diag_count(xy_loc_bulk, xy_loc_edge, xy_loc_corner)
+        off_diag_bulk_coe, off_diag_edge_coe, off_diag_corner_coe = -jnp.ones(off_diag_bulk_count), -jnp.ones(off_diag_edge_count), -jnp.ones(off_diag_corner_count)
+    else :
+        xy_loc_bulk, yloc_bulk, zloc_bulk, off_diag_bulk_coe = local_element_indices_2d(5, pauli_array_bulk, loc_array_bulk, rotation = True, angle = angle)
+        xy_loc_edge, yloc_edge, zloc_edge, off_diag_edge_coe = local_element_indices_2d(4, pauli_array_edge, loc_array_edge, rotation = True, angle = angle)
+        xy_loc_corner, yloc_corner, zloc_corner, off_diag_corner_coe = local_element_indices_2d(3, pauli_array_corner, loc_array_corner, rotation = True, angle = angle)
 
-    off_diag_bulk_count, off_diag_edge_count, off_diag_corner_count= off_diag_count(xy_loc_bulk, xy_loc_edge, xy_loc_corner)
     zloc_bulk_diag, zloc_edge_diag, zloc_corner_diag = jnp.array([]), jnp.array([]), jnp.array([])
     coe_bulk_diag, coe_edge_diag, coe_corner_diag = jnp.array([]), jnp.array([]), jnp.array([])
+
     if (5, 0) in xy_loc_bulk:
         if zloc_bulk[(5, 0)].size!=0:
             zloc_bulk_diag = zloc_bulk[(5, 0)]     #label the diagonal term by zloc_bulk_diag
-            coe_bulk_diag = -jnp.ones(zloc_bulk_diag.shape[0]) #Here is the coefficient for the diagonal term. We can change it later if we want
+            if (basis_rotation == False):
+                coe_bulk_diag = -jnp.ones(zloc_bulk_diag.shape[0])
+            else:
+                coe_bulk_diag = -jnp.ones(zloc_bulk_diag.shape[0])*x**4*y #Here is the coefficient for the diagonal term. We can change it later if we want
         del xy_loc_bulk[(5, 0)]
         del yloc_bulk[(5, 0)]
         del zloc_bulk[(5, 0)]
     if (4, 0) in xy_loc_edge:
         if zloc_edge[(4, 0)].size!=0:
             zloc_edge_diag = zloc_edge[(4, 0)]
-            coe_edge_diag = -jnp.ones(zloc_edge_diag.shape[0])
+            if (basis_rotation == False):
+                coe_edge_diag = -jnp.ones(zloc_edge_diag.shape[0])
+            else:
+                coe_edge_diag = -jnp.ones(zloc_edge_diag.shape[0])*x**3*y
         del xy_loc_edge[(4, 0)]
         del yloc_edge[(4, 0)]
         del zloc_edge[(4, 0)]
     if (3, 0) in xy_loc_corner:
         if zloc_corner[(3, 0)].size!=0:
             zloc_corner_diag = zloc_corner[(3, 0)]
-            coe_corner_diag = -jnp.ones(zloc_corner_diag.shape[0])
+            if (basis_rotation == False):
+                coe_corner_diag = -jnp.ones(zloc_corner_diag.shape[0])
+            else:
+                coe_corner_diag = -jnp.ones(zloc_corner_diag.shape[0])*x**2*y
         del xy_loc_corner[(3, 0)]
         del yloc_corner[(3, 0)]
         del zloc_corner[(3, 0)]
 
-    batch_total_samples_2d = vmap(total_samples_2d, (0, None))
-    batch_new_coe_2d = vmap(new_coe_2d, (0, None, None, None))
+    batch_total_samples_2d = vmap(total_samples_2d, (0, None), 0)
+    batch_new_coe_2d = vmap(new_coe_2d, (0, None, None, None, None))
     batch_diag_coe = vmap(diag_coe, (0, None, None, None, None, None, None))
     T = T0
     t = time.time()
@@ -195,21 +197,26 @@ for sparsity in (1,2,3,4,5,6,7,102):
         '''
         samples, sample_log_amp = sample_prob(numsamples, params, fixed_params, key)
 
-
+        #print(samples)
         key, subkey1, subkey2 = split(key, 3)
 
         sigmas = jnp.concatenate((batch_total_samples_2d(samples, xy_loc_bulk),
                                  batch_total_samples_2d(samples, xy_loc_edge),
                                  batch_total_samples_2d(samples, xy_loc_corner)), axis=1).reshape(-1, Ny, Nx)
-        matrixelements = jnp.concatenate((batch_new_coe_2d(samples, -jnp.ones(off_diag_bulk_count), yloc_bulk, zloc_bulk),
-                                         batch_new_coe_2d(samples, -jnp.ones(off_diag_edge_count), yloc_edge, zloc_edge),
-                                         batch_new_coe_2d(samples, -jnp.ones(off_diag_corner_count), yloc_corner, zloc_corner)), axis=1).reshape(numsamples, -1)
-
+        #minus sign account for the minus sign of each term in the Hamiltonian
+        matrixelements = jnp.concatenate((batch_new_coe_2d(samples, off_diag_bulk_coe, yloc_bulk, zloc_bulk, basis_rotation),
+                                         batch_new_coe_2d(samples, off_diag_edge_coe, yloc_edge, zloc_edge, basis_rotation),
+                                         batch_new_coe_2d(samples, off_diag_corner_coe, yloc_corner, zloc_corner, basis_rotation)), axis=1).reshape(numsamples, -1)
+        #print("sigmas_shape:",sigmas.shape)
+        #print("matrixelements_shape:", matrixelements.shape)
+        #print("matrixelement:", matrixelements)
         log_all_amp = log_amp(sigmas, params, fixed_params)
-        log_diag_amp = jnp.repeat(sample_log_amp, (jnp.ones(numsamples)*(off_diag_bulk_count+off_diag_edge_count+off_diag_corner_count)).astype(int), axis=0)
+        log_diag_amp = jnp.repeat(sample_log_amp, (jnp.ones(numsamples)*(matrixelements.shape[1])).astype(int), axis=0)
         amp = jnp.exp(log_all_amp.ravel()-log_diag_amp).reshape(numsamples, -1)
-
+        #print("log_all_amp_shape:", log_all_amp.shape)
+        #print("log_diag_amp_shape:", log_diag_amp.shape)
         Eloc = jnp.sum((amp*matrixelements), axis=1) + batch_diag_coe(samples, zloc_bulk_diag, zloc_edge_diag, zloc_corner_diag, coe_bulk_diag, coe_edge_diag, coe_corner_diag)
+        #print(batch_diag_coe(samples, zloc_bulk_diag, zloc_edge_diag, zloc_corner_diag, coe_bulk_diag, coe_edge_diag, coe_corner_diag))
         meanE = jnp.mean(Eloc)
         varE = jnp.var(Eloc)
 
@@ -252,8 +259,8 @@ for sparsity in (1,2,3,4,5,6,7,102):
 
         if (it%500 == 0):
             params_dict = jax.tree_util.tree_leaves(params)
-            with open(f"params/params_L{L}_numsamples{numsamples}_numunits{units}_rnntype_{rnn_type}.pkl", "wb") as f:
+            with open(f"params/params_L{L}_numsamples{numsamples}_numunits{units}_rnntype_{rnn_type}_rotation_{basis_rotation}_angle{angle}.pkl", "wb") as f:
                 pickle.dump(params_dict, f)
     print(time.time()-t)
-    jnp.save("result/meanE_L"+str(L)+"_units"+str(units)+"_cmi_pattern_"+cmi_pattern+"_sparsity"+str(sparsity)+"linear_cycle_schedule"+"_seed"+str(args.seed)+".npy", jnp.array(meanEnergy))
-    jnp.save("result/varE_L"+str(L)+"_units"+str(units)+"_cmi_pattern_"+cmi_pattern+"_sparsity"+str(sparsity)+"linear_cycle_schedule"+"_seed"+str(args.seed)+".npy", jnp.array(varEnergy))
+    jnp.save("result/meanE_L"+str(L)+"_units"+str(units)+"_cmi_pattern_"+cmi_pattern+"rotation"+str(basis_rotation)+"angle"+str(angle)+"_seed"+str(args.seed)+".npy", jnp.array(meanEnergy))
+    jnp.save("result/varE_L"+str(L)+"_units"+str(units)+"_cmi_pattern_"+cmi_pattern+"rotation"+str(basis_rotation)+"angle"+str(angle)+"_seed"+str(args.seed)+".npy", jnp.array(varEnergy))
