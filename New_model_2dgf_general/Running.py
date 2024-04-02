@@ -13,11 +13,11 @@ import pickle
 from jax import make_jaxpr
 import jax.config
 jax.config.update("jax_enable_x64", False)
-
+XLA_PYTHON_CLIENT_MEM_FRACTION=.50
 parser = argparse.ArgumentParser()
 parser.add_argument('--L', type = int, default=4)
-parser.add_argument('--numunits', type = int, default=16)
-parser.add_argument('--lr', type = float, default=8e-5)
+parser.add_argument('--numunits', type = int, default=64)
+parser.add_argument('--lr', type = float, default=2e-4)
 parser.add_argument('--lrthreshold', type = float, default=5e-4)
 parser.add_argument('--lrdecaytime', type = float, default=5000)
 parser.add_argument('--mag_fixed', type = bool, default=False)
@@ -31,17 +31,18 @@ parser.add_argument('--T0', type = float, default= 0.0)
 parser.add_argument('--Nwarmup', type = int, default=0)
 parser.add_argument('--Nannealing', type = int, default=0) #10000
 parser.add_argument('--Ntrain', type = int, default=0)
-parser.add_argument('--Nconvergence', type = int, default=10000)
-parser.add_argument('--numsamples', type = int, default=16)
+parser.add_argument('--Nconvergence', type = int, default=500)
+parser.add_argument('--numsamples', type = int, default=8)
 parser.add_argument('--testing_sample', type = int, default=5e+4)
 parser.add_argument('--lrthreshold_convergence', type = float, default=5e-4)
 parser.add_argument('--lrdecaytime_convergence', type = float, default=2500)
+
 parser.add_argument('--seed', type = int, default=3)
 parser.add_argument('--rnn_type', type = str, default="tensor_gru")
-parser.add_argument('--cmi_pattern', type = str, default="no_decay")
+parser.add_argument('--cmi_pattern', type = str, default="decay")
 parser.add_argument('--sparsity', type = int, default=0)
-parser.add_argument('--basis_rotation', type = bool, default=False)
-parser.add_argument('--angle', type = float, default=0.000001)
+parser.add_argument('--basis_rotation', type = bool, default=True)
+parser.add_argument('--angle', type = float, default=0.05*jnp.pi)
 args = parser.parse_args()
 
 units = args.numunits
@@ -79,9 +80,10 @@ diag_bulk, diag_edge, diag_corner =False, False, False
 meanEnergy=[]
 varEnergy=[]
 N = Ny*Nx
-x , y = jnp.cos(angle), jnp.sin(angle)
 
-for angle in (0., 0.05*jnp.pi, 0.1*jnp.pi, 0.15*jnp.pi, 0.20*jnp.pi, 0.25*jnp.pi, 0.3*jnp.pi, 0.35*jnp.pi, 0.4*jnp.pi, 0.45*jnp.pi, 0.5*jnp.pi):
+for angle in (0.,0.05*jnp.pi, 0.1*jnp.pi, 0.15*jnp.pi, 0.2*jnp.pi, 0.25*jnp.pi, 0.3*jnp.pi, 0.35*jnp.pi, 0.4*jnp.pi, 0.45*jnp.pi, 0.5*jnp.pi):
+
+    x, y = jnp.cos(angle), jnp.sin(angle)
     print(sparsity)
     if (rnn_type == "vanilla"):
         params = init_vanilla_params(Nx, Ny, units, input_size, key)
@@ -102,10 +104,10 @@ for angle in (0., 0.05*jnp.pi, 0.1*jnp.pi, 0.15*jnp.pi, 0.20*jnp.pi, 0.25*jnp.pi
                                                                        decay_steps=numsteps, end_value=1e-5)
 
     max_lr = 0.0005
-    min_lr = 0.00005
+    min_lr = 0.0001
     cycle_steps = 1000  # Adjust based on your training steps
     scheduler = lambda step: linear_cycling_with_hold(step, max_lr, min_lr, cycle_steps)
-    optimizer = optax.adam(learning_rate=0.0002)
+    optimizer = optax.adam(learning_rate=2e-4)
     optimizer_state = optimizer.init(params)
     if (basis_rotation == False):
     # create pauli matrices, 1 stands for pauli x and 3 stands for pauli z
@@ -195,9 +197,9 @@ for angle in (0., 0.05*jnp.pi, 0.1*jnp.pi, 0.15*jnp.pi, 0.20*jnp.pi, 0.25*jnp.pi
         elif it+1>Nwarmup+Nannealing*Ntrain: #After annealing -> finetuning the model during convergence
             lr_adap = lrthreshold_conv/(1+(it-(Nwarmup+Nannealing*Ntrain))/lrdecaytime_conv)
         '''
+        t0 = time.time()
         samples, sample_log_amp = sample_prob(numsamples, params, fixed_params, key)
-
-        #print(samples)
+        #print("sample_time:", time.time()-t0)
         key, subkey1, subkey2 = split(key, 3)
 
         sigmas = jnp.concatenate((batch_total_samples_2d(samples, xy_loc_bulk),
@@ -208,14 +210,14 @@ for angle in (0., 0.05*jnp.pi, 0.1*jnp.pi, 0.15*jnp.pi, 0.20*jnp.pi, 0.25*jnp.pi
                                          batch_new_coe_2d(samples, off_diag_edge_coe, yloc_edge, zloc_edge, basis_rotation),
                                          batch_new_coe_2d(samples, off_diag_corner_coe, yloc_corner, zloc_corner, basis_rotation)), axis=1).reshape(numsamples, -1)
         #print("sigmas_shape:",sigmas.shape)
-        #print("matrixelements_shape:", matrixelements.shape)
-        #print("matrixelement:", matrixelements)
+
+        t0 = time.time()
         log_all_amp = log_amp(sigmas, params, fixed_params)
+        print("log_amp_time:", time.time()-t0)
         log_diag_amp = jnp.repeat(sample_log_amp, (jnp.ones(numsamples)*(matrixelements.shape[1])).astype(int), axis=0)
         amp = jnp.exp(log_all_amp.ravel()-log_diag_amp).reshape(numsamples, -1)
-        #print("log_all_amp_shape:", log_all_amp.shape)
-        #print("log_diag_amp_shape:", log_diag_amp.shape)
         Eloc = jnp.sum((amp*matrixelements), axis=1) + batch_diag_coe(samples, zloc_bulk_diag, zloc_edge_diag, zloc_corner_diag, coe_bulk_diag, coe_edge_diag, coe_corner_diag)
+
         #print(batch_diag_coe(samples, zloc_bulk_diag, zloc_edge_diag, zloc_corner_diag, coe_bulk_diag, coe_edge_diag, coe_corner_diag))
         meanE = jnp.mean(Eloc)
         varE = jnp.var(Eloc)
@@ -262,5 +264,5 @@ for angle in (0., 0.05*jnp.pi, 0.1*jnp.pi, 0.15*jnp.pi, 0.20*jnp.pi, 0.25*jnp.pi
             with open(f"params/params_L{L}_numsamples{numsamples}_numunits{units}_rnntype_{rnn_type}_rotation_{basis_rotation}_angle{angle}.pkl", "wb") as f:
                 pickle.dump(params_dict, f)
     print(time.time()-t)
-    jnp.save("result/meanE_L"+str(L)+"_units"+str(units)+"_cmi_pattern_"+cmi_pattern+"rotation"+str(basis_rotation)+"angle"+str(angle)+"_seed"+str(args.seed)+".npy", jnp.array(meanEnergy))
-    jnp.save("result/varE_L"+str(L)+"_units"+str(units)+"_cmi_pattern_"+cmi_pattern+"rotation"+str(basis_rotation)+"angle"+str(angle)+"_seed"+str(args.seed)+".npy", jnp.array(varEnergy))
+    jnp.save("result/meanE_L"+str(L)+"_units"+str(units)+"_rotation"+str(basis_rotation)+"_angle"+str(angle)+"_seed"+str(args.seed)+".npy", jnp.array(meanEnergy))
+    jnp.save("result/varE_L"+str(L)+"_units_"+str(units)+"_rotation"+str(basis_rotation)+"_angle"+str(angle)+"_seed"+str(args.seed)+".npy", jnp.array(varEnergy))

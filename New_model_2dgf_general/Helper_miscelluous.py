@@ -15,6 +15,7 @@ from math import ceil
 import itertools
 from RNNfunction import *
 import numpy as np
+import optax
 
 def generate_combinations(length):
     set1 = [1] * length
@@ -47,6 +48,29 @@ def linear_cycling_with_hold(schedule_step, max_lr, min_lr, cycle_steps):
     return lr
 
 
+
+
+def clip_grad(g, clip_norm=10.0):
+    norm = jnp.linalg.norm(g)
+    scale = jnp.minimum(1.0, clip_norm / (norm + 1e-6))
+    return g * scale
+
+def schedule(step: float, min_lr: float, max_lr: float, period: float) -> float:
+    """Compute a learning rate that oscillates sinusoidally between min_lr and max_lr."""
+    oscillation = (jnp.sin(jnp.pi * step / period) + 1) / 2  # Will be between 0 and 1
+    return min_lr + (max_lr - min_lr) * oscillation
+
+def warmup_cosine_decay_scheduler(lr, lrthreshold, Nwarmup, numsteps):
+    warmup_cosine_decay_scheduler = optax.warmup_cosine_decay_schedule(init_value=lr, peak_value=lrthreshold,
+                                                                       warmup_steps=Nwarmup,
+                                                                       decay_steps=numsteps, end_value=1e-5)
+
+    max_lr = 0.0005
+    min_lr = 0.00005
+    cycle_steps = 1000  # Adjust based on your training steps
+
+    return lambda step: linear_cycling_with_hold(step, max_lr, min_lr, cycle_steps)
+
 @partial(jax.jit, static_argnames=['fixed_parameters'])
 def compute_cost(parameters, fixed_parameters, samples, Eloc, Temperature):
     samples = jax.lax.stop_gradient(samples)
@@ -65,13 +89,3 @@ def compute_cost(parameters, fixed_parameters, samples, Eloc, Temperature):
     cost = term1 + term2
 
     return cost
-
-def clip_grad(g, clip_norm=10.0):
-    norm = jnp.linalg.norm(g)
-    scale = jnp.minimum(1.0, clip_norm / (norm + 1e-6))
-    return g * scale
-
-def schedule(step: float, min_lr: float, max_lr: float, period: float) -> float:
-    """Compute a learning rate that oscillates sinusoidally between min_lr and max_lr."""
-    oscillation = (jnp.sin(jnp.pi * step / period) + 1) / 2  # Will be between 0 and 1
-    return min_lr + (max_lr - min_lr) * oscillation

@@ -19,6 +19,7 @@ elif model == "1DJ1J2":
 elif model == "1DTFIM":
     int_ = "B"
     params =  [-0.2, -0.5, -0.8, -0.95, -0.98, -1.0, -1.02, -1.05, -1.2, -1.5, -2.0, -3.5, -6.0] #magnetic field
+
 periodic = False
 
 

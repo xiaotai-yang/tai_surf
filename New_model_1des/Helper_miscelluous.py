@@ -66,7 +66,30 @@ def compute_cost(parameters, fixed_parameters, samples, Eloc, Temperature):
 
     return cost
 
-def clip_grad(g, clip_norm=10.0):
+def real_log_amp(parameters, fixed_parameters, samples):
+    samples = jax.lax.stop_gradient(samples)
+    log_amps_tensor = log_amp(samples, parameters, fixed_parameters)
+
+    return jnp.real(log_amps_tensor)
+
+def imag_log_amp(parameters, fixed_parameters, samples):
+    samples = jax.lax.stop_gradient(samples)
+    log_amps_tensor = log_amp(samples, parameters, fixed_parameters)
+
+    return jnp.imag(log_amps_tensor)
+def mean_real_log_amp(parameters, fixed_parameters, samples):
+    samples = jax.lax.stop_gradient(samples)
+    log_amps_tensor = log_amp(samples, parameters, fixed_parameters)
+
+    return jnp.mean(jnp.real(log_amps_tensor))
+
+def mean_imag_log_amp(parameters, fixed_parameters, samples):
+    samples = jax.lax.stop_gradient(samples)
+    log_amps_tensor = log_amp(samples, parameters, fixed_parameters)
+
+    return jnp.mean(jnp.imag(log_amps_tensor))
+
+def clip_grad(g, clip_norm=5.0):
     norm = jnp.linalg.norm(g)
     scale = jnp.minimum(1.0, clip_norm / (norm + 1e-6))
     return g * scale
@@ -75,3 +98,4 @@ def schedule(step: float, min_lr: float, max_lr: float, period: float) -> float:
     """Compute a learning rate that oscillates sinusoidally between min_lr and max_lr."""
     oscillation = (jnp.sin(jnp.pi * step / period) + 1) / 2  # Will be between 0 and 1
     return min_lr + (max_lr - min_lr) * oscillation
+

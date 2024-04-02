@@ -1,7 +1,7 @@
 import jax
 import netket as nk
 import numpy as np
-from netket.operator.spin import sigmax,sigmaz, sigmap, sigmam
+from netket.operator.spin import sigmax,sigmaz, sigmap, sigmam, identity
 import time
 from scipy.sparse.linalg import eigsh
 import jax.numpy as jnp
@@ -12,7 +12,7 @@ L = 4
 N = L*L
 periodic = False
 hi = nk.hilbert.Spin(s=1 / 2, N =  N)
-model = "2DTFIM"
+model = "2DRyberg"
 
 if model == "2DXXZ":
     int_ = "delta"
@@ -23,7 +23,9 @@ elif model == "2DJ1J2":
 elif model == "2DTFIM":
     int_ = "B"
     params =  [0, -0.5, -1.0, -1.2, -1.4, -1.6, -1.8, -2.0, -2.5, -4.0] #magnetic field
-
+elif model == "2DRyberg":
+    int_ = "delta"
+    params = [ 0.4, 0.8, 1.2, 1.6, 2.0, 2.4, 2.8, 3.2, 3.6, 4.0, 4.4 ] #delta
 for param in params :
     if model == "2DXXZ":
         H = sum([2*(sigmap(hi, y*L+x)*sigmam(hi, (y+1)*L+x)+sigmam(hi, y*L+x)*sigmap(hi, (y+1)*L+x))+param*sigmaz(hi, y*L+x)*sigmaz(hi, (y+1)*L+x) for y in range(L-1) for x in range(L)]) #up-down J1
@@ -57,19 +59,37 @@ for param in params :
             H-= sum([sigmaz(hi, x)*sigmaz(hi, (L-1)*L+x) for x in range(L)]) # last row - first row
             H-= sum([sigmaz(hi, y*L)*sigmaz(hi, y*L+L-1) for y in range(L)]) # last column - first column
         H/=4
+    elif model == "2DRyberg":
+        Omega = 1.0
+        Rb = 3.
+        H = Omega/2*sum([sigmax(hi, y*L+x) for y in range (L) for x in range (L)]) #X
+        H -= param/2*sum([(identity(hi)-sigmaz(hi, y*L+x)) for y in range(L) for x in range(L)])
+        H += Omega*Rb/4*sum([((identity(hi)-sigmaz(hi, y1*L+x1))*(identity(hi)-sigmaz(hi, y1*L+x2)))/((x1-x2)**2)**3 \
+                             for y1 in range(L) for x1 in range(L) for x2 in range(x1+1, L)])
+        H += Omega*Rb/4*sum([((identity(hi)-sigmaz(hi, y1*L+x1))*(identity(hi)-sigmaz(hi, y2*L+x2)))/(((x1-x2)**2+(y1-y2)**2)**3) \
+                             for y1 in range(L) for x1 in range(L) for y2 in range(y1+1, L) for x2 in range(L)])
     sp_h = H.to_sparse()
     eig_vals, eig_vecs = eigsh(sp_h, k=2, which="SA")
     print("eigenvalues with scipy sparse " +int_+"="+str(param) +":", eig_vals)
     prob_exact = eig_vecs[:,0]**2
     mag = np.sum(prob_exact*count_diff_ones_zeros(L**2))
+    magH = sum([sigmaz(hi, y*L+x) for y in range(L) for x in range (L)])
+    mag1 = eig_vecs[:,0] @ magH.to_sparse() @ eig_vecs[:,0]
+    print(mag, mag1)
     shape = (2,) * (L**2)
     prob_exact = prob_exact.reshape(*shape)
     mean_corr, var_corr = correlation_all(prob_exact, L)
     cmi = cmi_(prob_exact, L)
     cmi_all = cmi_traceout(prob_exact, L)
+
+    if model == "2DRyberg":
+        stagger_H = sum([sigmaz(hi, y*L+x)*(-1)**(y*L+x) for y in range(L) for x in range (L)])
+        stagger_mag = np.abs(eig_vecs[:,0].conj() @ stagger_H.to_sparse() @ eig_vecs[:,0])
+        print(stagger_mag)
     np.save("result/"+model+"/gap_"+model+"_L"+str(L)+"_"+int_+"_"+str(param)+"periodic_"+str(periodic)+".npy", np.array(eig_vals[1]-eig_vals[0]))
     np.save("result/"+model+"/cmi_"+model+"_L"+str(L)+"_"+int_+"_"+str(param)+"periodic_"+str(periodic)+".npy", cmi)
     np.save("result/"+model+"/mean_corr_"+model+"_L"+str(L)+"_"+int_+"_"+str(param)+"periodic_"+str(periodic)+".npy", mean_corr)
     np.save("result/"+model+"/var_corr_"+model+"_L"+str(L)+"_"+int_+"_"+str(param)+"periodic_"+str(periodic)+".npy", var_corr)
     np.save("result/"+model+"/cmi_traceout_"+model+"_L"+str(L)+"_"+int_+"_"+str(param)+"periodic_"+str(periodic)+".npy", cmi_all)
     np.save("result/"+model+"/mag_"+model+"_L"+str(L)+"_"+int_+"_"+str(param)+"periodic_"+str(periodic)+".npy", mag)
+    np.save("result/"+model+"/stagger_mag_"+model+"_L"+str(L)+"_"+int_+"_"+str(param)+"periodic_"+str(periodic)+".npy", stagger_mag)

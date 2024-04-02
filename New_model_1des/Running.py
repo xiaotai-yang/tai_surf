@@ -12,12 +12,14 @@ from RNNfunction import *
 import pickle
 from jax import make_jaxpr
 import jax.config
+from jax.flatten_util import ravel_pytree
+
 jax.config.update("jax_enable_x64", False)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--L', type = int, default=16)
-parser.add_argument('--numunits', type = int, default=32)
-parser.add_argument('--lr', type = float, default=5e-4)
+parser.add_argument('--numunits', type = int, default=16)
+parser.add_argument('--lr', type = float, default=1e-3)
 parser.add_argument('--lrthreshold', type = float, default=5e-4)
 parser.add_argument('--lrdecaytime', type = float, default=5000)
 parser.add_argument('--mag_fixed', type = bool, default=False)
@@ -40,6 +42,7 @@ parser.add_argument('--cmi_pattern', type = str, default="no_decay")
 parser.add_argument('--sparsity', type = int, default=0)
 parser.add_argument('--basis_rotation', type = bool, default=True)
 parser.add_argument('--angle', type = float, default=0.000001)
+parser.add_argument('--sr', type = bool, default=True)
 args = parser.parse_args()
 
 units = args.numunits
@@ -66,6 +69,7 @@ cmi_pattern = args.cmi_pattern
 sparsity = args.sparsity
 basis_rotation = args.basis_rotation
 angle = args.angle
+sr = args.sr
 input_size = 2
 L = args.L
 key = PRNGKey(args.seed)
@@ -90,7 +94,11 @@ for angle in (0.0*jnp.pi, 0.05*jnp.pi, 0.1*jnp.pi, 0.15*jnp.pi, 0.20*jnp.pi, 0.2
 
     # get the gradient function and compute cost is imported from Helper_miscelluous.py
     grad_f = jax.jit(jax.grad(compute_cost), static_argnums=(1,))
-
+    if sr == True:
+        grad_real_log_amp = jax.jit(jax.grad(mean_real_log_amp), static_argnums=(1,))
+        grad_imag_log_amp = jax.jit(jax.grad(mean_imag_log_amp), static_argnums=(1,))
+        jac_real_log_amp = jax.jit(jax.jacfwd(real_log_amp), static_argnums=(1,))
+        jac_imag_log_amp = jax.jit(jax.jacfwd(imag_log_amp), static_argnums=(1,))
     # fixed params is made static (constant) in jax environement
     fixed_params = N, mag_fixed, magnetization, units
 
@@ -105,7 +113,10 @@ for angle in (0.0*jnp.pi, 0.05*jnp.pi, 0.1*jnp.pi, 0.15*jnp.pi, 0.20*jnp.pi, 0.2
     cycle_steps = 1000  
     scheduler = lambda step: linear_cycling_with_hold(step, max_lr, min_lr, cycle_steps)
     '''
-    optimizer = optax.adam(learning_rate=lr)
+    if (sr == False):
+        optimizer = optax.adam(learning_rate=lr)
+    else:
+        optimizer = optax.sgd(learning_rate=lr)
     optimizer_state = optimizer.init(params)
     if (basis_rotation == False):
     # create pauli matrices, 1 stands for pauli x and 3 stands for pauli z, fl means first and last, l means the left one
@@ -262,6 +273,21 @@ for angle in (0.0*jnp.pi, 0.05*jnp.pi, 0.1*jnp.pi, 0.15*jnp.pi, 0.20*jnp.pi, 0.2
 
         grads = grad_f(params, fixed_params, samples, Eloc, T)
         #print("grad_time:", time.time()-t)
+        if sr == True:
+            o_prod = lambda x, y: jnp.outer(x, y)
+            ravel_grads, unflatten = ravel_pytree(grads)
+
+            imag_log_amp_grads = grad_imag_log_amp(params, fixed_params, samples)
+            real_log_amp_jac = jac_real_log_amp(params, fixed_params, samples)
+            imag_log_amp_jac = jac_imag_log_amp(params, fixed_params, samples)
+
+            imag_log_amp_grads, unflatten_imag_log_amp_grads = ravel_pytree(imag_log_amp_grads)
+            real_log_amp_jac, unflatten_real_log_amp_jac = ravel_pytree(real_log_amp_jac)
+            imag_log_amp_jac, unflatten_imag_log_amp_jac = ravel_pytree(imag_log_amp_jac)
+
+            q_fisher = jnp.mean(vmap(o_prod, (0, 0), 0)(real_log_amp_jac, real_log_amp_jac), axis = 0) + jnp.mean(vmap(o_prod, (0, 0), 0)(imag_log_amp_jac, imag_log_amp_jac), axis = 0) - jnp.outer(imag_log_amp_grads, imag_log_amp_grads)
+            q_fisher += jnp.eye(q_fisher.shape[0])*1e-3
+            grads = unflatten(jnp.real(jax.scipy.sparse.linalg.cg(q_fisher, ravel_grads)[0]))
 
         if gradient_clip == True:
             grads = jax.tree_map(clip_grad, grads)
