@@ -1,0 +1,37 @@
+{
+    "train": {
+        "L": 64,
+        "Q": 1,
+        "K": 256,
+        "B": 256,
+        "NLOOPS": 1,
+        "steps": 50000,
+        "dir": "PTF",
+        "lr": 0.0005,
+        "seed": 65487,
+        "sgrad": false,
+        "true_grad": false,
+        "sub_directory": "",
+        "LOOPS": 4
+    },
+    "model": {
+        "L": 64,
+        "patch": "2x2",
+        "Nh": 128,
+        "dropout": 0.0,
+        "num_layers": 2,
+        "nhead": 8,
+        "repeat_pre": false,
+        "model_name": "PTF"
+    },
+    "hamiltonian": {
+        "Lx": 8,
+        "Ly": 8,
+        "V": 3,
+        "Omega": 1.0,
+        "delta": 0.1,
+        "0mega": 1,
+        "L": 64,
+        "name": "RYDBERG"
+    }
+}

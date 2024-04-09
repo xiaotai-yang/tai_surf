@@ -72,13 +72,13 @@ def warmup_cosine_decay_scheduler(lr, lrthreshold, Nwarmup, numsteps):
     return lambda step: linear_cycling_with_hold(step, max_lr, min_lr, cycle_steps)
 
 @partial(jax.jit, static_argnames=['fixed_parameters',])
-def compute_cost(parameters, fixed_parameters, samples, Eloc, Temperature, ny_nx_indices):
+def compute_cost(parameters, fixed_parameters, samples, Eloc, Temperature, n_indices):
     samples = jax.lax.stop_gradient(samples)
     Eloc = jax.lax.stop_gradient(Eloc)
 
     # First term
 
-    log_amps_tensor, probs_tensor = vmap(log_amp_RWKV, (0, None, None, None))(samples, parameters, fixed_parameters, ny_nx_indices)
+    log_amps_tensor, probs_tensor = vmap(log_amp_RWKV, (0, None, None, None))(samples, parameters, fixed_parameters, n_indices)
     term1 = 2 * jnp.real(jnp.mean(log_amps_tensor.conjugate() * (Eloc - jnp.mean(Eloc))))
     # Second term
     '''

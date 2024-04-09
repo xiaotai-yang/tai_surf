@@ -324,3 +324,5 @@ def off_diag_count(xy_loc_bulk, xy_loc_edge, xy_loc_corner):
         else:
             diag_corner_count = 1
     return off_diag_bulk_count, off_diag_edge_count, off_diag_corner_count
+
+
