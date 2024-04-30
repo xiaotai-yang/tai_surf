@@ -23,19 +23,6 @@ def init_network_params(sizes, ny, nx, key):
     outkey = keys[0]
     return outkey, [random_layer_params(ny, nx, m, n, k) for m, n, k in zip(sizes[1:], sizes[:-1], keys[1:])]
 
-def init_vanilla_params(Nx, Ny, units, input_size, key):
-    key, rnn_params = init_network_params([units + input_size, units], Ny, Nx, hidden_size, key)
-    key, amp_params = init_network_params([units + input_size, input_size], Ny, Nx, hidden_size, key)
-    key, phase_params = init_network_params([units + input_size, input_size], Ny, Nx, hidden_size, key)
-    Wrnn, brnn = rnn_params[0][0], rnn_params[0][1]
-    Wamp, bamp = amp_params[0][0], amp_params[0][1]
-    Wphase, bphase = phase_params[0][0], phase_params[0][1]  # 2*units → output(amplitude)
-    rnn_states_init_x = random.normal(random.split(key)[0], (Nx, 2 * units))  # states at vertical direction
-    rnn_states_init_y = random.normal(random.split(key)[1], (Ny, 2 * units))
-
-    return rnn_states_init_x, rnn_states_init_y, (
-    Winput, binput, Wrnn1, brnn1, Wrnn2, brnn2, Wrnn3, brnn3, Wamp, bamp, Wphase, bphase)
-
 def vanilla_rnn_step(local_inputs, local_states, params):  # local_input is already concantenated
     Wrnn, brnn, Wamp, bamp, Wphase, bphase = params
 
@@ -133,6 +120,7 @@ def init_tensor_gru_params(Nx, Ny, units, input_size, key, ln = False, generaliz
     wln_u, wln_r, wln_out = jnp.ones((Ny, Nx, units)), jnp.ones((Ny, Nx, units)), jnp.ones((Ny, Nx, units))
     bln_u, bln_r, bln_out = jnp.zeros((Ny, Nx, units)), jnp.zeros((Ny, Nx, units)), jnp.zeros((Ny, Nx, units))
     return (wemb, winit_emb_x, winit_emb_y, state_init_x, state_init_y, wln_in, bln_in, wln_u, bln_u, wln_r, bln_r, wln_out, bln_out, Wu, Wr, Ws, Wout, Wamp, bamp, Wphase, bphase)
+
 @partial(jax.jit, static_argnames=("ln",))
 def tensor_gru_rnn_step(local_inputs, local_states, params, output_params, ln = True):  # local_input is already concantenated
     print("begin")

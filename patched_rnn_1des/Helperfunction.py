@@ -305,7 +305,7 @@ def off_diag_count(xy_loc_bulk, xy_loc_fl, xy_loc_xzz):
             diag_xzz_count = 1
     return off_diag_bulk_count, off_diag_fl_count, off_diag_xzz_count
 
-def vmc_off_diag(N, p, angle, basis_rotation):
+def vmc_off_diag_es(N, p, angle, basis_rotation):
     x, y = jnp.cos(angle), jnp.sin(angle)
     if (basis_rotation == False):
         # create pauli matrices, 1 stands for pauli x and 3 stands for pauli z, fl means first and last, l means the left one
@@ -374,6 +374,83 @@ def vmc_off_diag(N, p, angle, basis_rotation):
             else:
                 # For xy_loc_bulk, the original term is XZX, for it rotate to ZZZ, it will obtain a cos(\theta)*sin^2(\theta) coeffiecient
                 coe_bulk_diag = -jnp.ones(zloc_bulk_diag.shape[0]) * x * y ** 2
+        del xy_loc_bulk[(3, 0)]
+        del yloc_bulk[(3, 0)]
+        del zloc_bulk[(3, 0)]
+    if (2, 0) in xy_loc_fl:
+        if zloc_fl[(2, 0)].size != 0:
+            zloc_fl_diag = zloc_fl[(2, 0)]
+            if (basis_rotation == False):
+                # it's fine here since no ZZ term exist in the original Hamiltonian
+                coe_fl_diag = jnp.ones(zloc_fl_diag.shape[0])
+            else:
+                # ZX term rotate to ZZ term, it will obtain a -cos(\theta)*sin(\theta) coeffiecient
+                # XX term rotate to ZZ term, it will obtain a sin^2(\theta) coeffiecient
+                coe_fl_diag = jnp.concatenate((jnp.ones(int(zloc_fl_diag.shape[0] / 2)) * x * y,
+                                               -jnp.ones(int(zloc_fl_diag.shape[0] / 2)) * y ** 2))
+                # print(coe_fl_diag)
+        del xy_loc_fl[(2, 0)]
+        del yloc_fl[(2, 0)]
+        del zloc_fl[(2, 0)]
+    if (3, 0) in xy_loc_xzz:
+        if zloc_xzz[(3, 0)].size != 0:
+            zloc_xzz_diag = zloc_xzz[(3, 0)]
+            if (basis_rotation == False):
+                # it's fine here since no ZZ term exist in the original Hamiltonian
+                coe_xzz_diag = jnp.ones(zloc_xzz_diag.shape[0])
+            else:
+                # XZZ term rotate to ZZZ term, it will obtain a -cos^2(\theta)*sin(\theta) coeffiecient
+                coe_xzz_diag = jnp.ones(zloc_xzz_diag.shape[0]) * x ** 2 * y
+        del xy_loc_xzz[(3, 0)]
+        del yloc_xzz[(3, 0)]
+        del zloc_xzz[(3, 0)]
+    return (xy_loc_bulk, xy_loc_fl, xy_loc_xzz, yloc_bulk, yloc_fl, yloc_xzz, zloc_bulk, zloc_fl,
+            zloc_xzz, off_diag_bulk_coe, off_diag_fl_coe, off_diag_xzz_coe, zloc_bulk_diag, zloc_fl_diag,
+            zloc_xzz_diag, coe_bulk_diag, coe_fl_diag, coe_xzz_diag)
+
+def vmc_off_diag_sign_free(N, p):
+
+    # create pauli matrices, 1 stands for pauli x and 3 stands for pauli z, fl means first and last, l means the left one
+    # bulk means the XZX terms for the bulk. There are (N-3) terms of them.
+    # fl means the first and last term which is ZX and XX acting on the first two sites and last two sites respectively
+    # xzz is the term XZZ acting on the last three sites
+    pauli_x, pauli_z = jnp.repeat(jnp.array([1, 1, 1])[None], int(N*p/2), axis=0), jnp.repeat(jnp.array([3, 3, 3])[None], int(N*p/2), axis=0)
+    loc_array_x, loc_array_z = loc_array_es(N*p)
+
+    '''
+    label_xxx[y, x] is a dict datatype and it is the location of loc_array_xxx 
+    such that pauli_array_bulk.at[label[i][:,0].astype(int), label[i][:,1].astype(int)] will
+    show the pauli matrix that acts on lattice location (y, x). This function coupled with pauli_cmi_pattern
+    are used previously to change the measurement basis  with different density. We actually don't need this function here 
+    '''
+    #label_bulk, label_fl, label_xzz = location_pauli_label(loc_array_bulk, loc_array_fl, loc_array_xzz, N)
+    #pauli_array_bulk, pauli_array_fl, pauli_array_xzz = pauli_cmi_pattern(pauli_array_bulk, pauli_array_fl,pauli_array_xzz, label_bulk, label_fl, label_xzz, cmi_pattern, key, sparsity, L)
+
+    '''
+    We group the location that each Hamiltonian term acts on according to how many x,y,z they have in each term
+    XX_loc_YYY is a dict datatype and its key is the number of Z-term and X-term (Z, X) and its value is the location
+    of corresponding XX type of interaction acting on the lattice
+
+    And off_diag_count is to count how many off-diagonal terms are there when we do VMC. It's just the total number of terms involving X and Y.
+    off-diag_coe is the corresponding coeffiecient for each off-diagonal term. 
+    '''
+
+    xy_loc_bulk, yloc_bulk, zloc_bulk = local_element_indices_1d(3, pauli_array_bulk, loc_array_bulk)
+    xy_loc_fl, yloc_fl, zloc_fl = local_element_indices_1d(2, pauli_array_fl, loc_array_fl)
+    xy_loc_xzz, yloc_xzz, zloc_xzz = local_element_indices_1d(3, pauli_array_xzz, loc_array_xzz)
+    off_diag_bulk_count, off_diag_fl_count, off_diag_xzz_count = off_diag_count(xy_loc_bulk, xy_loc_fl, xy_loc_xzz)
+    off_diag_bulk_coe, off_diag_fl_coe, off_diag_xzz_coe = -jnp.ones(off_diag_bulk_count), -jnp.ones(
+        off_diag_fl_count), -jnp.ones(off_diag_xzz_count)
+
+    zloc_bulk_diag, zloc_fl_diag, zloc_xzz_diag = jnp.array([]), jnp.array([]), jnp.array([])
+    coe_bulk_diag, coe_fl_diag, coe_xzz_diag = jnp.array([]), jnp.array([]), jnp.array([])
+
+    # Here we get the diagonal term and its coefficient of the Hamiltonian
+    if (3, 0) in xy_loc_bulk:
+        if zloc_bulk[(3, 0)].size != 0:
+            zloc_bulk_diag = zloc_bulk[(3, 0)]  # label the diagonal term by zloc_bulk_diag
+            # For xy_loc_bulk, the original term is XZX, for it rotate to ZZZ, it will obtain a cos(\theta)*sin^2(\theta) coeffiecient
+            coe_bulk_diag = -jnp.ones(zloc_bulk_diag.shape[0]) * x * y ** 2
         del xy_loc_bulk[(3, 0)]
         del yloc_bulk[(3, 0)]
         del zloc_bulk[(3, 0)]

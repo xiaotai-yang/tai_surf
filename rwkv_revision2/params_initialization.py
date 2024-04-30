@@ -73,7 +73,7 @@ def time_mixing(x, t_state, decay, bonus, t_mix_k, t_mix_v, t_mix_r, t_wlast_x, 
     rwkv = nn.sigmoid(r) * wkv
     #jax.debug.print("decay:{}", decay)
     #jax.debug.print("exp(k):{}", jnp.exp(k))
-    alpha = jnp.exp(-jnp.exp(decay)) * last_alpha + jnp.exp(k) * v
+    alpha = jnp.exp(-jnp.exp(decay)) * last_alpha + jnp.exp(k) * k
     beta = jnp.exp(-jnp.exp(decay)) * last_beta + jnp.exp(k)
     #jax.debug.print("alpha:{}", alpha)
     #jax.debug.print("beta:{}", beta)
