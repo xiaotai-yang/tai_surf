@@ -133,7 +133,7 @@ def init_tensor_gru_params(Nx, Ny, units, input_size, key, ln = False, generaliz
     return (wemb, winit_emb_x, winit_emb_y, state_init_x, state_init_y, wln_in, bln_in, wln_u, bln_u, wln_r, bln_r, wln_out, bln_out, Wu, Wr, Ws, Wout, Wamp, bamp)
 @partial(jax.jit, static_argnames=("ln",))
 def tensor_gru_rnn_step(local_inputs, local_states, params, output_params, ln = True):  # local_input is already concantenated
-    print("begin")
+
     wln_in, bln_in, wln_u, bln_u, wln_r, bln_r, wln_out, bln_out, Wu, Wr, Ws, Wout = params
     Wamp, bamp = output_params
 
