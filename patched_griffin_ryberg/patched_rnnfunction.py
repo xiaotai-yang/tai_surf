@@ -87,22 +87,20 @@ def sample_prob(params, fixed_params, ny_nx_indices, key):
 
     Ny, Nx, py, px, mag_fixed, magnetization = fixed_params
     int_to_binary = partial(int_to_binary_array, num_bits=px * py)
-    wemb = params[0]
-    net_params = params[5:-4]
-    out_params = params[-4:]
+
     def scan_fun_1d(carry_1d, indices):
         ny, nx = indices
-        rnn_states_x_1d, rnn_states_yi_1d, inputs_x_1d, inputs_yi_1d, key = carry_1d
-        rnn_states = jnp.concatenate((rnn_states_yi_1d, rnn_states_x_1d[nx]), axis=0)
-        rnn_inputs = jnp.concatenate((inputs_yi_1d, inputs_x_1d[nx]), axis=0)
+        state_x_1d, states_yi_1d, inputs_x_1d, inputs_yi_1d, key = carry_1d
+        rnn_inputs = jnp.outer((inputs_yi_1d, inputs_x_1d[nx]), axis=0).ravel()
 
-        new_state, new_prob = tensor_gru_rnn_step(rnn_inputs, rnn_states,  tuple(px[nx] for px in tuple(py[ny] for py in net_params)), tuple(px[nx] for px in tuple(py[ny] for py in out_params)))
+        new_state, new_prob = griffin_step(rnn_inputs, state_x_1d, states_yi_1d,
+        tuple(px[nx] for px in tuple(py[ny] for py in net_params)), tuple(px[nx] for px in tuple(py[ny] for py in out_params)))
         key, subkey = split(key)
         block_sample = categorical(subkey, jnp.log(new_prob))
         probs = new_prob[block_sample]
         inputs_yi_1d = wemb[block_sample]
 
-        return (rnn_states_x_1d, new_state, inputs_x_1d, inputs_yi_1d, key), (block_sample, probs, new_state)
+        return (state_x_1d, new_state, inputs_x_1d, inputs_yi_1d, key), (block_sample, probs, new_state)
 
     def scan_fun_2d(carry_2d, indices):  # indices:[[0,0], [0,1], [0,2]...[0,Nx-1]]
         rnn_states_x, rnn_states_y, inputs_x, inputs_y, key = carry_2d
