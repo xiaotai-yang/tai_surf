@@ -85,13 +85,6 @@ def compute_cost(parameters, fixed_parameters, samples, Eloc, Temperature, ny_nx
     cost = term1 + term2
 
     return cost
-def params_init(rnn_type, Nx, Ny, units, input_size, emb_size, h_size, preout_size, num_layer, key):
-    if (rnn_type == "gru_rnn"):
-        params = init_tensor_gru_params(Nx, Ny, units, input_size, key)
-    elif (rnn_type == "RWKV"):
-        out_size = input_size
-        params = init_RWKV_params(input_size, emb_size, h_size, preout_size, num_layer, out_size, Ny, Nx, key)
-    return params
 
 def flip_sample(sample, x, y):
     return sample.at[x,y].set(1-sample[x, y])

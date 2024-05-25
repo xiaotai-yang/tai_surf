@@ -89,22 +89,12 @@ for angle in (0.0*jnp.pi, 0.05*jnp.pi, 0.1*jnp.pi, 0.15*jnp.pi, 0.20*jnp.pi, 0.2
 
     # get the gradient function and compute cost is imported from Helper_miscelluous.py
     grad_f = jax.jit(jax.grad(compute_cost), static_argnums=(2,))
-    if sr == True:
-        grad_real_log_amp = jax.jit(jax.grad(mean_real_log_amp), static_argnums=(1,))
-        grad_imag_log_amp = jax.jit(jax.grad(mean_imag_log_amp), static_argnums=(1,))
-        jac_real_log_amp = jax.jit(jax.jacfwd(real_log_amp), static_argnums=(1,))
-        jac_imag_log_amp = jax.jit(jax.jacfwd(imag_log_amp), static_argnums=(1,))
-
-    if (sr == False):
-        optimizer = optax.adam(learning_rate=lr)
-    else:
-        optimizer = optax.sgd(learning_rate=lr)
-
+    optimizer = optax.adam(learning_rate=lr)
     optimizer_state = optimizer.init(params)
     fixed_params = N, p, units
     (xy_loc_bulk, xy_loc_fl, xy_loc_xzz, yloc_bulk, yloc_fl, yloc_xzz, zloc_bulk, zloc_fl,
     zloc_xzz, off_diag_bulk_coe, off_diag_fl_coe, off_diag_xzz_coe, zloc_bulk_diag, zloc_fl_diag,
-    zloc_xzz_diag, coe_bulk_diag, coe_fl_diag, coe_xzz_diag) = vmc_off_diag(N, p, angle, basis_rotation)
+    zloc_xzz_diag, coe_bulk_diag, coe_fl_diag, coe_xzz_diag) = vmc_off_diag_es(N, p, angle, basis_rotation)
     batch_sample_prob = jax.jit(vmap(sample_prob, (None, None, None, 0)), static_argnames=['fixed_params'])
     batch_log_amp = jax.jit(vmap(log_amp, (0, None, None, None)), static_argnames=['fixed_params'])
     batch_total_samples_1d = vmap(total_samples_1d, (0, None), 0)
