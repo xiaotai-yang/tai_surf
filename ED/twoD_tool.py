@@ -139,3 +139,14 @@ def correlation_one(prob_exact, L):    # correlation function respect to [0, 0]
         mean_corr[i] = np.abs(corr[i]).mean()
         var_corr[i] = np.abs(corr[i]).var()
     return np.array(mean_corr), np.array(var_corr)
+
+
+def create_alternating_matrix(n):
+    # Create an n*n matrix where each element is 1
+    matrix = np.ones((n, n), dtype=int)
+
+    # Multiply by -1 at every other index
+    matrix[1::2, ::2] = -1  # Change every other row starting from the second row
+    matrix[::2, 1::2] = -1  # Change every other column starting from the second column
+
+    return matrix

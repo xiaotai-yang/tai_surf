@@ -7,6 +7,7 @@ from scipy.sparse.linalg import eigsh
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 from twoD_tool import *
+from jax.random import PRNGKey, categorical, split
 
 L = 4
 N = L*L
@@ -25,7 +26,7 @@ elif model == "2DTFIM":
     params =  [0, -0.5, -1.0, -1.2, -1.4, -1.6, -1.8, -2.0, -2.5, -4.0] #magnetic field
 elif model == "2DRyberg":
     int_ = "delta"
-    params = [ 0.4, 0.8, 1.2, 1.6, 2.0, 2.4, 2.8, 3.2, 3.6, 4.0, 4.4 ] #delta
+    params = [ 0.0, 0.4, 0.8, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.8, 3.2, 3.6] #delta
 for param in params :
     if model == "2DXXZ":
         H = sum([2*(sigmap(hi, y*L+x)*sigmam(hi, (y+1)*L+x)+sigmam(hi, y*L+x)*sigmap(hi, (y+1)*L+x))+param*sigmaz(hi, y*L+x)*sigmaz(hi, (y+1)*L+x) for y in range(L-1) for x in range(L)]) #up-down J1
@@ -60,6 +61,10 @@ for param in params :
             H-= sum([sigmaz(hi, y*L)*sigmaz(hi, y*L+L-1) for y in range(L)]) # last column - first column
         H/=4
     elif model == "2DRyberg":
+        numsamples = 1024
+        batch_categorical = jax.vmap(categorical, in_axes=(0, None))
+        batch_dot = jax.vmap(jnp.dot, (0, None))
+        key = PRNGKey(1)
         Omega = 1.0
         Rb = 3.
         H = Omega/2*sum([sigmax(hi, y*L+x) for y in range (L) for x in range (L)]) #X
@@ -83,13 +88,13 @@ for param in params :
     cmi_all = cmi_traceout(prob_exact, L)
 
     if model == "2DRyberg":
-        stagger_H = sum([sigmaz(hi, y*L+x)*(-1)**(y*L+x) for y in range(L) for x in range (L)])
-        stagger_mag = np.abs(eig_vecs[:,0].conj() @ stagger_H.to_sparse() @ eig_vecs[:,0])
-        stagger_mag_mixed = np.abs(eig_vecs[:,0].conj() @ stagger_H.to_sparse() @ eig_vecs[:,1])
-        stagger_mag_1 = np.abs(eig_vecs[:,1].conj() @ stagger_H.to_sparse() @ eig_vecs[:,1])
-        print(stagger_mag)
-        print(stagger_mag_mixed)
-        print(stagger_mag_1)
+        key, subkey = split(key, 2)
+        key_ = split(subkey, numsamples)
+        samples = batch_categorical(key_, jnp.log(jnp.real(eig_vecs[:, 0].conj() * eig_vecs[:, 0])))
+        samples_b = jnp.flip(jnp.unpackbits(samples.view('uint8'), bitorder='little').reshape(numsamples, -1), axis=1)[:, 64-L**2:]
+        alt_m = create_alternating_matrix(L)
+        stagger_mag = jnp.mean(jnp.abs(batch_dot(samples_b.reshape(numsamples, -1), create_alternating_matrix(L).ravel().T)) / (L ** 2))
+
     np.save("result/"+model+"/gap_"+model+"_L"+str(L)+"_"+int_+"_"+str(param)+"periodic_"+str(periodic)+".npy", np.array(eig_vals[1]-eig_vals[0]))
     np.save("result/"+model+"/cmi_"+model+"_L"+str(L)+"_"+int_+"_"+str(param)+"periodic_"+str(periodic)+".npy", cmi)
     np.save("result/"+model+"/mean_corr_"+model+"_L"+str(L)+"_"+int_+"_"+str(param)+"periodic_"+str(periodic)+".npy", mean_corr)
