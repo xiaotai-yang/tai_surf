@@ -85,7 +85,11 @@ for param in params :
     if model == "2DRyberg":
         stagger_H = sum([sigmaz(hi, y*L+x)*(-1)**(y*L+x) for y in range(L) for x in range (L)])
         stagger_mag = np.abs(eig_vecs[:,0].conj() @ stagger_H.to_sparse() @ eig_vecs[:,0])
+        stagger_mag_mixed = np.abs(eig_vecs[:,0].conj() @ stagger_H.to_sparse() @ eig_vecs[:,1])
+        stagger_mag_1 = np.abs(eig_vecs[:,1].conj() @ stagger_H.to_sparse() @ eig_vecs[:,1])
         print(stagger_mag)
+        print(stagger_mag_mixed)
+        print(stagger_mag_1)
     np.save("result/"+model+"/gap_"+model+"_L"+str(L)+"_"+int_+"_"+str(param)+"periodic_"+str(periodic)+".npy", np.array(eig_vals[1]-eig_vals[0]))
     np.save("result/"+model+"/cmi_"+model+"_L"+str(L)+"_"+int_+"_"+str(param)+"periodic_"+str(periodic)+".npy", cmi)
     np.save("result/"+model+"/mean_corr_"+model+"_L"+str(L)+"_"+int_+"_"+str(param)+"periodic_"+str(periodic)+".npy", mean_corr)
