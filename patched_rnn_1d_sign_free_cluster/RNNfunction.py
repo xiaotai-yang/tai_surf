@@ -175,3 +175,4 @@ def log_amp(sample, params, wemb, fixed_params):
    
     return log_amp
 
+

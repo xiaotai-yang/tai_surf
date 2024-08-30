@@ -175,3 +175,20 @@ def log_amp(sample, params, wemb, fixed_params):
    
     return log_amp
 
+def log_amp_dmrg(samples, M0, M, Mlast):
+
+    def scan_fun(vec, indices):
+        n = indices
+        vec = M[samples[n+1],:,:,n] @ vec
+        return vec, None
+
+    vec_init = M0[samples[0]]
+    vec_last = Mlast[samples[-1]]
+    N = samples.shape[0]
+    n_indices = jnp.arange(N-2)
+    amp_last, _ = scan(scan_fun, vec_init, n_indices)
+    amp = jnp.dot(amp_last, vec_last)
+
+    return jnp.log(amp+0.0*1j)
+
+

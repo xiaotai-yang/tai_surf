@@ -17,10 +17,10 @@ from jax.flatten_util import ravel_pytree
 jax.config.update("jax_enable_x64", False)
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--L', type = int, default = 4)
+parser.add_argument('--L', type = int, default = 8)
 parser.add_argument('--p', type = int, default = 2)
-parser.add_argument('--numunits', type = int, default=16)
-parser.add_argument('--lr', type = float, default=1e-3)
+parser.add_argument('--numunits', type = int, default=32)
+parser.add_argument('--lr', type = float, default=2e-4)
 parser.add_argument('--lrthreshold', type = float, default=5e-4)
 parser.add_argument('--lrdecaytime', type = float, default=5000)
 parser.add_argument('--mag_fixed', type = bool, default=False)
