@@ -81,12 +81,12 @@ def compute_cost(parameters, wemb, fixed_parameters, samples, Eloc, Temperature,
                        (samples, parameters, wemb, fixed_parameters, ny_nx_indices))
     term1 = 2 * jnp.real(jnp.mean(log_amps_tensor.conjugate() * (Eloc - jnp.mean(Eloc))))
     # Second term
-
+    '''
     term2 = 4 * Temperature * (jnp.mean(jnp.real(log_amps_tensor) * jax.lax.stop_gradient(jnp.real(log_amps_tensor)))
                                - jnp.mean(jnp.real(log_amps_tensor)) * jnp.mean(
                 jax.lax.stop_gradient(jnp.real(log_amps_tensor))))
-
-    cost = term1 + term2
+    '''
+    cost = term1 
 
     return cost
 def params_init(N, input_size, emb_size, h_size, out_h_size, num_layer, key):

@@ -11,7 +11,7 @@ from Helper_miscelluous import *
 from patched_rnnfunction import *
 import pickle
 from jax import make_jaxpr
-import jax.config
+#import jax.config
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--L', type = int, default=16)
@@ -30,8 +30,8 @@ parser.add_argument('--T0', type = float, default= 0.0)
 parser.add_argument('--Nwarmup', type = int, default=0)
 parser.add_argument('--Nannealing', type = int, default=0) #10000
 parser.add_argument('--Ntrain', type = int, default=0)
-parser.add_argument('--Nconvergence', type = int, default=2400)
-parser.add_argument('--numsamples', type = int, default=160)
+parser.add_argument('--Nconvergence', type = int, default=5000)
+parser.add_argument('--numsamples', type = int, default=256)
 parser.add_argument('--testing_sample', type = int, default=5e+4)
 parser.add_argument('--lrthreshold_convergence', type = float, default=5e-4)
 parser.add_argument('--lrdecaytime_convergence', type = float, default=2500)
@@ -99,7 +99,7 @@ for angle in (jnp.arange(11)*jnp.pi/20):
     fixed_params = N, p, h_size, num_layer
     (xy_loc_bulk, xy_loc_fl, xy_loc_xzz, yloc_bulk, yloc_fl, yloc_xzz, zloc_bulk, zloc_fl,
      zloc_xzz, off_diag_bulk_coe, off_diag_fl_coe, off_diag_xzz_coe, zloc_bulk_diag, zloc_fl_diag,
-     zloc_xzz_diag, coe_bulk_diag, coe_fl_diag, coe_xzz_diag) = vmc_off_diag(N, p, angle, basis_rotation)
+     zloc_xzz_diag, coe_bulk_diag, coe_fl_diag, coe_xzz_diag) = vmc_off_diag_es(N, p, angle, basis_rotation)
 
     batch_sample_prob = jax.jit(vmap(sample_prob_RWKV, (None, None, None, None, 0)), static_argnames=['fixed_params'])
     batch_log_amp = jax.jit(vmap(log_amp_RWKV, (0, None, None, None, None)), static_argnames=['fixed_params'])

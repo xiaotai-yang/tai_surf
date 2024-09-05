@@ -54,8 +54,7 @@ def compute_cost(parameters, wemb, fixed_parameters, samples, Eloc, Temperature,
 
     # First term
 
-    log_amps_tensor = (jax.jit(vmap(log_amp,(0, None, None, None)), static_argnames=['fixed_params'])(samples, parameters, wemb, fixed_parameters)+
-                       jax.jit(vmap(log_phase_dmrg, (0, None, None, None)))(samples.reshape(samples.shape[0], -1), M0_, M_, Mlast_))
+    log_amps_tensor = jax.jit(vmap(log_amp,(0, None, None, None)), static_argnames=['fixed_params'])(samples, parameters, wemb, fixed_parameters)+jax.jit(vmap(log_phase_dmrg, (0, None, None, None)))(samples.reshape(samples.shape[0], -1), M0_, M_, Mlast_)
     term1 = 2 * jnp.real(jnp.mean(log_amps_tensor.conjugate() * (Eloc - jnp.mean(Eloc))))
     # Second term
     '''

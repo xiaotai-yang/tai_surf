@@ -1,4 +1,4 @@
-import netket as nk
+
 import jax
 import jax.numpy as jnp
 from jax import grad, jit, vmap
@@ -81,12 +81,13 @@ def compute_cost(parameters, fixed_parameters, samples, Eloc, Temperature, ny_nx
     log_amps_tensor = vmap(log_amp, (0, None, None, None))(samples, parameters, fixed_parameters, ny_nx_indices)
     term1 = 2 * jnp.real(jnp.mean(log_amps_tensor.conjugate() * (Eloc - jnp.mean(Eloc))))
     # Second term
-
+    '''
     term2 = 4 * Temperature * (jnp.mean(jnp.real(log_amps_tensor) * jax.lax.stop_gradient(jnp.real(log_amps_tensor)))
                                - jnp.mean(jnp.real(log_amps_tensor)) * jnp.mean(
                 jax.lax.stop_gradient(jnp.real(log_amps_tensor))))
-
-    cost = term1 + term2
+    
+    '''
+    cost = term1
 
     return cost
 def params_init(rnn_type, Nx, Ny, units, input_size, key):

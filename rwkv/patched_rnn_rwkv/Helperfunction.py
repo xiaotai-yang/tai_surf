@@ -1,4 +1,4 @@
-
+import netket as nk
 import jax
 import jax.numpy as jnp
 from jax import grad, jit, vmap
@@ -14,10 +14,11 @@ import time
 from math import ceil
 import itertools
 from patched_rnnfunction import *
-import numpy as np
+from Helper_miscelluous import *
 
 def local_element_indices_2d(num_body, pauli_array, loc_array, rotation = False, angle = 0.0):
     '''
+
     Args:
         num_body: The length of each Pauli string.
         pauli_array: The corresponding Pauli string of the Hamiltonian term.
@@ -54,17 +55,17 @@ def local_element_indices_2d(num_body, pauli_array, loc_array, rotation = False,
             mask_x = (pauli_array_xz[i, j] == 1)
             mask_y = (pauli_array_xz[i, j] == 2)
             mask_z = (pauli_array_xz[i, j] == 3)
-            ref_bulk_z_mask = jnp.array([False, True, True, True, True])
-            ref_edge_z_mask = jnp.array([False, True, True, True])
-            ref_corner_z_mask = jnp.array([False, True, True])
+            ref_bulk_z_mask = jnp.array([True, False, False, False, False])
+            ref_edge_z_mask = jnp.array([True, False, False, False])
+            ref_corner_z_mask = jnp.array([True, False, False])
             x, y = jnp.cos(angle), jnp.sin(angle)
             if rotation:
                 if num_body == 5:
-                    coe_arrays[i, j] = -x**(jnp.sum(mask_z == ref_bulk_z_mask, axis = 1))*y**(jnp.sum(mask_z != ref_bulk_z_mask, axis = 1))
+                    coe_arrays[i, j] = -(-1)**(jnp.sum((mask_z == False) & (mask_z != ref_bulk_z_mask), axis = 1))*x**(jnp.sum(mask_z == ref_bulk_z_mask, axis = 1))*y**(jnp.sum(mask_z != ref_bulk_z_mask, axis = 1))
                 elif num_body == 4:
-                    coe_arrays[i, j] = -x**(jnp.sum(mask_z == ref_edge_z_mask, axis = 1))*y**(jnp.sum(mask_z != ref_edge_z_mask, axis = 1))
+                    coe_arrays[i, j] = -(-1)**(jnp.sum((mask_z == False) & (mask_z != ref_edge_z_mask), axis = 1))*x**(jnp.sum(mask_z == ref_edge_z_mask, axis = 1))*y**(jnp.sum(mask_z != ref_edge_z_mask, axis = 1))
                 elif num_body == 3:
-                    coe_arrays[i, j] = -x**(jnp.sum(mask_z == ref_corner_z_mask, axis = 1))*y**(jnp.sum(mask_z != ref_corner_z_mask, axis = 1))
+                    coe_arrays[i, j] = -(-1)**(jnp.sum((mask_z == False) & (mask_z != ref_corner_z_mask), axis = 1))*x**(jnp.sum(mask_z == ref_corner_z_mask, axis = 1))*y**(jnp.sum(mask_z != ref_corner_z_mask, axis = 1))
             if mask_x.sum() != 0:
                 xloc_arrays[i, j] = loc_array[mask][mask_x].reshape(-1, j, 2)
             elif mask_y.sum() != 0 or mask_z.sum() !=0:
@@ -325,4 +326,86 @@ def off_diag_count(xy_loc_bulk, xy_loc_edge, xy_loc_corner):
             diag_corner_count = 1
     return off_diag_bulk_count, off_diag_edge_count, off_diag_corner_count
 
+def vmc_off_diag_es(Ny, Nx, px, py, angle, basis_rotation):
+    x, y = jnp.cos(angle), jnp.sin(angle)
+    if (basis_rotation == False):
+    # create pauli matrices, 1 stands for pauli x and 3 stands for pauli z
 
+        pauli_array_bulk, pauli_array_edge, pauli_array_corner  = jnp.repeat(jnp.array([1,3,3,3,3])[None], (Ny*py-2)*(Nx*px-2), axis=0), jnp.repeat(jnp.array([1,3,3,3])[None], (Ny*py+Nx*px-4)*2, axis=0), jnp.repeat(jnp.array([1,3,3])[None], 4, axis=0)
+        loc_array_bulk, loc_array_edge, loc_array_corner = loc_array_gf(Ny*py, Nx*px)
+    else :
+        total_samples =         '''
+        First repeat for each location then iterate over the combinations
+        [[1,1,1,1,1]...,[1,1,1,1,1],[1,1,1,1,3]...[3,3,3,3,3]]
+        '''
+        pauli_array_bulk, pauli_array_edge, pauli_array_corner = jnp.repeat(generate_combinations(5), (Ny*py-2)*(Nx*px-2), axis=0), jnp.repeat(generate_combinations(4),(Ny*py+Nx*px-4)*2, axis=0), jnp.repeat(generate_combinations(3), 4, axis=0)
+
+        # The location that each Hamiltonian term acts on
+        loc_array_bulk, loc_array_edge, loc_array_corner = loc_array_gf(Ny*py, Nx*px)
+        loc_array_bulk, loc_array_edge, loc_array_corner  = jnp.tile(loc_array_bulk, (32, 1, 1)), jnp.tile(loc_array_edge, (16, 1, 1)), jnp.tile(loc_array_corner, (8, 1, 1 ))
+
+
+    '''
+    label_xxx[y, x] is a dict datatype and it is the location of loc_array_xxx 
+    such that pauli_array_bulk.at[label[i][:,0].astype(int), label[i][:,1].astype(int)] will
+    show the pauli matrix that acts on lattice location
+    '''
+    label_bulk, label_edge, label_corner = location_pauli_label(loc_array_bulk, loc_array_edge, loc_array_corner, Ny*py, Nx*px)
+
+    '''
+    We group the location that each Hamiltonian term acts on according to how many x,y,z they have in each term
+    XX_loc_YYY is a dict datatype and its key is the number of Z-term and X-term (Z, X) and its value is the location
+    of corresponding XX type of interaction acting on the lattice 
+    '''
+    if (basis_rotation == False):
+        xy_loc_bulk, yloc_bulk, zloc_bulk = local_element_indices_2d(5, pauli_array_bulk, loc_array_bulk)
+        xy_loc_edge, yloc_edge, zloc_edge = local_element_indices_2d(4, pauli_array_edge, loc_array_edge)
+        xy_loc_corner, yloc_corner, zloc_corner = local_element_indices_2d(3, pauli_array_corner, loc_array_corner)
+        off_diag_bulk_count, off_diag_edge_count, off_diag_corner_count = off_diag_count(xy_loc_bulk, xy_loc_edge, xy_loc_corner)
+        off_diag_bulk_coe, off_diag_edge_coe, off_diag_corner_coe = -jnp.ones(off_diag_bulk_count), -jnp.ones(off_diag_edge_count), -jnp.ones(off_diag_corner_count)
+    else :
+        xy_loc_bulk, yloc_bulk, zloc_bulk, off_diag_bulk_coe = local_element_indices_2d(5, pauli_array_bulk, loc_array_bulk, rotation = True, angle = angle)
+        xy_loc_edge, yloc_edge, zloc_edge, off_diag_edge_coe = local_element_indices_2d(4, pauli_array_edge, loc_array_edge, rotation = True, angle = angle)
+        xy_loc_corner, yloc_corner, zloc_corner, off_diag_corner_coe = local_element_indices_2d(3, pauli_array_corner, loc_array_corner, rotation = True, angle = angle)
+
+    zloc_bulk_diag, zloc_edge_diag, zloc_corner_diag = jnp.array([]), jnp.array([]), jnp.array([])
+    coe_bulk_diag, coe_edge_diag, coe_corner_diag = jnp.array([]), jnp.array([]), jnp.array([])
+
+    if (5, 0) in xy_loc_bulk:
+        if zloc_bulk[(5, 0)].size!=0:
+            zloc_bulk_diag = zloc_bulk[(5, 0)]     #label the diagonal term by zloc_bulk_diag
+            # ZXXXX to ZZZZZ
+            if (basis_rotation == False):
+                coe_bulk_diag = -jnp.ones(zloc_bulk_diag.shape[0])
+            else:
+                coe_bulk_diag = -jnp.ones(zloc_bulk_diag.shape[0])*x*y**4
+                #Here is the coefficient for the diagonal term. We can change it later if we want
+        del xy_loc_bulk[(5, 0)]
+        del yloc_bulk[(5, 0)]
+        del zloc_bulk[(5, 0)]
+    if (4, 0) in xy_loc_edge:
+        if zloc_edge[(4, 0)].size!=0:
+            zloc_edge_diag = zloc_edge[(4, 0)]
+            # ZXXX to ZZZZ
+            if (basis_rotation == False):
+                coe_edge_diag = -jnp.ones(zloc_edge_diag.shape[0])
+            else:
+                coe_edge_diag = -jnp.ones(zloc_edge_diag.shape[0])*x*y**3
+        del xy_loc_edge[(4, 0)]
+        del yloc_edge[(4, 0)]
+        del zloc_edge[(4, 0)]
+    if (3, 0) in xy_loc_corner:
+        if zloc_corner[(3, 0)].size!=0:
+            zloc_corner_diag = zloc_corner[(3, 0)]
+            # ZXX to ZZZ
+            if (basis_rotation == False):
+                coe_corner_diag = -jnp.ones(zloc_corner_diag.shape[0])
+            else:
+                coe_corner_diag = -jnp.ones(zloc_corner_diag.shape[0])*x*y**2
+        del xy_loc_corner[(3, 0)]
+        del yloc_corner[(3, 0)]
+        del zloc_corner[(3, 0)]
+
+    return (xy_loc_bulk, xy_loc_edge, xy_loc_corner, yloc_bulk, yloc_edge, yloc_corner, zloc_bulk, zloc_edge,
+            zloc_corner, off_diag_bulk_coe, off_diag_edge_coe, off_diag_corner_coe, zloc_bulk_diag, zloc_edge_diag,
+            zloc_corner_diag, coe_bulk_diag, coe_edge_diag, coe_corner_diag)

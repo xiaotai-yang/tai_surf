@@ -18,7 +18,7 @@ jax.config.update("jax_enable_x64", False)
 
 
 
-N = 16
+N = 64
 L = N
 p = 1
 basis_rotation = True

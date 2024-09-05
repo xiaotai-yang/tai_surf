@@ -186,6 +186,6 @@ def log_phase_dmrg(samples, M0, M, Mlast):
     n_indices = jnp.arange(N-2)
     amp_last, _ = scan(scan_fun, vec_init, n_indices)
     amp = jnp.dot(amp_last, vec_last)
-    sign = amp / jnp.abs(amp)
+    sign = lax.cond(jnp.abs(amp)>1e-12, lambda x: amp / jnp.abs(amp), lambda x: 1. , None)
     log_phase = (-sign+1)/2*jnp.pi*1j
     return log_phase

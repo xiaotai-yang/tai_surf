@@ -1,4 +1,3 @@
-import netket as nk
 import jax
 import jax.numpy as jnp
 from jax import grad, jit, vmap

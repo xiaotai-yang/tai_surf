@@ -83,7 +83,7 @@ varEnergy_dmrg=[]
 N = L
 
 
-for angle in (0.0*jnp.pi, 0.0*jnp.pi, 0.05*jnp.pi, 0.1*jnp.pi, 0.15*jnp.pi, 0.20*jnp.pi, 0.25*jnp.pi, 0.3*jnp.pi, 0.35*jnp.pi, 0.4*jnp.pi, 0.45*jnp.pi, 0.5*jnp.pi):
+for angle in (0.0*jnp.pi,  0.05*jnp.pi, 0.1*jnp.pi, 0.15*jnp.pi, 0.20*jnp.pi, 0.25*jnp.pi, 0.3*jnp.pi, 0.35*jnp.pi, 0.4*jnp.pi, 0.45*jnp.pi, 0.5*jnp.pi):
     # x and y are the cosine and sine of the rotation angle
     ang = round(angle, 3)
     with open('params/params_L16_numsamples128_numunits32_rnntype_tensor_gru_rotation_True_angle1.5707963267948966.pkl', 'rb') as f:

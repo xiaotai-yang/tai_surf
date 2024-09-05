@@ -15,7 +15,7 @@ import jax.config
 jax.config.update("jax_enable_x64", False)
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--L', type = int, default=3)
+parser.add_argument('--L', type = int, default=4)
 parser.add_argument('--px', type = int, default=1)
 parser.add_argument('--py', type = int, default=1)
 parser.add_argument('--numunits', type = int, default=4)
